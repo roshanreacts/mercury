@@ -1,5 +1,5 @@
 import _ from "lodash";
-import { Schema, model } from "mongoose";
+import { Schema, model, Query } from "mongoose";
 
 const fieldsTypeMap = [
   { type: "string", value: "String" },
@@ -175,11 +175,7 @@ class Generate {
 
     //   Queries
     _.map(queries, (query) => {
-      Query[query] = (root: any, args: { data: any }, ctx: any) => {
-        console.log(root);
-        console.log(args.data);
-        console.log(ctx);
-      };
+      Query[query] = this.mapMongoResolver(query, model);
     });
 
     //   Mutations
@@ -214,15 +210,24 @@ class Generate {
   }
 
   mapMongoResolver(name: string, Model: any) {
+    let resolver = { Query: {}, Mutation: {} };
     // createModel resolver
     switch (name) {
       // Queries
       case `all${this.modelName}s`:
         return async (root: any, args: { where: any }, ctx: any) => {
-          const newModel = Model.find({});
-          await newModel.save();
-          return newModel;
+          const findAll = await Model.find(this.whereInputCompose(args.where));
+          return findAll;
         };
+        break;
+      case `get${this.modelName}`:
+        return async (root: any, args: { where: any }, ctx: any) => {
+          const findOne = await Model.findOne(
+            this.whereInputCompose(args.where)
+          );
+          return findOne;
+        };
+        break;
       // Mutations
       case `create${this.modelName}`:
         return async (root: any, args: { data: any }, ctx: any) => {
@@ -240,6 +245,76 @@ class Generate {
         };
         break;
     }
+  }
+
+  whereInputCompose(input: any) {
+    let querySchema: any = {};
+    _.mapKeys(input, (fieldReq: any, field: string) => {
+      let key: string | undefined;
+      if (field !== "id") {
+        key = this.getFieldType(this.modelFields[field].type);
+      } else {
+        key = "ID";
+      }
+      switch (key) {
+        case "ID":
+          querySchema._id = _.has(fieldReq, "is")
+            ? { $eq: fieldReq.is }
+            : _.has(fieldReq, "isNot")
+            ? { $ne: fieldReq.isNot }
+            : _.has(fieldReq, "in")
+            ? { $in: fieldReq.in }
+            : _.has(fieldReq, "notIn")
+            ? { $nin: fieldReq.notIn }
+            : null;
+          break;
+        case "String":
+          querySchema[field] = _.has(fieldReq, "is")
+            ? { $eq: fieldReq.is }
+            : _.has(fieldReq, "isNot")
+            ? { $ne: fieldReq.isNot }
+            : _.has(fieldReq, "contains")
+            ? { $regex: `${fieldReq.contains}`, $options: "i" }
+            : _.has(fieldReq, "notContains")
+            ? { $regex: `^((?!${fieldReq.notContains}).)*$`, $options: "i" }
+            : _.has(fieldReq, "startsWith")
+            ? { $regex: `^${fieldReq.startsWith}`, $options: "i" }
+            : _.has(fieldReq, "notStartWith")
+            ? { $not: { $regex: `^${fieldReq.notStartWith}.*`, $options: "i" } }
+            : _.has(fieldReq, "endsWith")
+            ? { $regex: `.*${fieldReq.endsWith}$`, $options: "i" }
+            : _.has(fieldReq, "notEndsWith")
+            ? { $not: { $regex: `.*${fieldReq.notEndsWith}$`, $options: "i" } }
+            : _.has(fieldReq, "in")
+            ? { $in: fieldReq.in }
+            : _.has(fieldReq, "notIn")
+            ? { $nin: fieldReq.notIn }
+            : null;
+          break;
+        case "Int":
+          querySchema[field] = _.has(fieldReq, "is")
+            ? { $eq: fieldReq.is }
+            : _.has(fieldReq, "isNot")
+            ? { $ne: fieldReq.isNot }
+            : _.has(fieldReq, "lt")
+            ? { $lt: fieldReq.lt }
+            : _.has(fieldReq, "lte")
+            ? { $lte: fieldReq.lte }
+            : _.has(fieldReq, "gt")
+            ? { $gt: fieldReq.gt }
+            : _.has(fieldReq, "gte")
+            ? { $gte: fieldReq.gte }
+            : _.has(fieldReq, "in")
+            ? { $in: fieldReq.in }
+            : _.has(fieldReq, "notIn")
+            ? { $nin: fieldReq.notIn }
+            : null;
+          break;
+        default:
+          break;
+      }
+    });
+    return querySchema;
   }
 }
 

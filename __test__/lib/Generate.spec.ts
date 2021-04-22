@@ -65,4 +65,25 @@ describe("shoudl validate generate", () => {
     const genWhereInput = generate.generateWhereInput("orgUsers", "Int");
     expect(genWhereInput).toBe(`  orgUsers: whereInt`);
   });
+  it("should compose where input to schema", () => {
+    const input = {
+      id: {
+        isNot: "687y787g637ge3e3y7823e",
+      },
+      firstName: {
+        startsWith: "Roshan",
+      },
+      todosCount: { gt: 1 },
+    };
+    const getWhereSchema = generate.whereInputCompose(input);
+    expect(getWhereSchema).toStrictEqual({
+      _id: { $ne: "687y787g637ge3e3y7823e" },
+      firstName: {
+        $regex: "^Roshan",
+      },
+      todosCount: {
+        $gt: 1,
+      },
+    });
+  });
 });
