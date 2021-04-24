@@ -169,7 +169,11 @@ class Generate {
     }
   }
 
-  graphqlResolver(queries: Array<string>, mutation: Array<string>, model: any) {
+  graphqlResolver(
+    queries: Array<string>,
+    mutation: Array<string>,
+    model: any
+  ): ModelResolvers {
     let Query: any = {};
     let Mutation: any = {};
 
@@ -210,7 +214,6 @@ class Generate {
   }
 
   mapMongoResolver(name: string, Model: any) {
-    let resolver = { Query: {}, Mutation: {} };
     // createModel resolver
     switch (name) {
       // Queries

@@ -1,3 +1,4 @@
+import _ from "lodash";
 import Generate from "./Generate";
 
 class Create {
@@ -15,11 +16,27 @@ class Create {
       getSchema.mutation,
       dbModels.mongoModel
     );
+    let mergedResolver = getResolver;
+    if (reqSchema.resolvers != null) {
+      mergedResolver = this.replaceresolvers(reqSchema.resolvers, getResolver);
+    }
     return {
       schema: getSchema.schema,
-      resolver: getResolver,
+      resolver: mergedResolver,
       models: dbModels,
     };
+  }
+
+  replaceresolvers(
+    customResolvers: ModelResolvers,
+    defaultResolvers: ModelResolvers
+  ): ModelResolvers {
+    const mergeQuery = _.assign(defaultResolvers.Query, customResolvers.Query);
+    const mergeMutation = _.assign(
+      defaultResolvers.Mutation,
+      customResolvers.Mutation
+    );
+    return { Query: mergeQuery, Mutation: mergeMutation };
   }
 }
 

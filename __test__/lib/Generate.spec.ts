@@ -80,6 +80,7 @@ describe("shoudl validate generate", () => {
       _id: { $ne: "687y787g637ge3e3y7823e" },
       firstName: {
         $regex: "^Roshan",
+        $options: "i",
       },
       todosCount: {
         $gt: 1,

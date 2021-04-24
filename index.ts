@@ -74,7 +74,7 @@ class Mercury {
 
   createList(
     name: string,
-    schema: { fields: FieldsMap; resolvers?: ResolversMap }
+    schema: { fields: FieldsMap; resolvers?: ModelResolvers }
   ) {
     const regexPascal = /^[A-Z][A-Za-z]*$/; //Pascalcase regex
     if (!regexPascal.test(name) || name.slice(-1) === "s") {
