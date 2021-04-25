@@ -109,10 +109,10 @@ input whereUserInput {
 type Mutation {
   createUser(data: createUserInput!): User
   createUsers(data: [createUserInput!]!): [User]
-  updateUser(id: ID!, data: createUserInput!): User
+  updateUser(id: ID!, data: updateUserSchema!): User
   updateUsers(data: [updateUserInput!]!): [User]
-  deleteUser(id: ID!): User
-  deleteUsers(ids: [ID!]): [User]
+  deleteUser(id: ID!): Boolean
+  deleteUsers(ids: [ID!]): Boolean
 }
 
 type User {
@@ -129,9 +129,15 @@ input createUserInput {
   todosCount: Int
   isAdmin: Boolean
 }
+input updateUserSchema {
+  firstName: String
+  lastName: String
+  todosCount: Int
+  isAdmin: Boolean
+}
 
 input updateUserInput {
   id: ID!
-  data: createUserInput!
+  data: updateUserSchema!
 }
 `;

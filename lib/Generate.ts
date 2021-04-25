@@ -69,15 +69,13 @@ class Generate {
       `  create${this.modelName}s(data: [create${this.modelName}Input!]!): [${this.modelName}]`
     );
     genSchema.push(
-      `  update${this.modelName}(id: ID!, data: create${this.modelName}Input!): ${this.modelName}`
+      `  update${this.modelName}(id: ID!, data: update${this.modelName}Schema!): ${this.modelName}`
     );
     genSchema.push(
       `  update${this.modelName}s(data: [update${this.modelName}Input!]!): [${this.modelName}]`
     );
-    genSchema.push(`  delete${this.modelName}(id: ID!): ${this.modelName}`);
-    genSchema.push(
-      `  delete${this.modelName}s(ids: [ID!]): [${this.modelName}]`
-    );
+    genSchema.push(`  delete${this.modelName}(id: ID!): Boolean`);
+    genSchema.push(`  delete${this.modelName}s(ids: [ID!]): Boolean`);
     genSchema.push(`}`);
     genSchema.push(``);
 
@@ -118,11 +116,19 @@ class Generate {
     // Close input type
     genSchema.push(`}`);
 
+    // ********* Declare Model Update Input type **********
+    genSchema.push(`input update${this.modelName}Schema {`);
+    _.mapKeys(this.modelFields, (fieldObj, fieldName) => {
+      genSchema.push(`  ${fieldName}: ${this.getFieldType(fieldObj.type)}`);
+    });
+    // Close input type
+    genSchema.push(`}`);
+
     // Update Input
     genSchema.push(``);
     genSchema.push(`input update${this.modelName}Input {`);
     genSchema.push(`  id: ID!`);
-    genSchema.push(`  data: create${this.modelName}Input!`);
+    genSchema.push(`  data: update${this.modelName}Schema!`);
     genSchema.push(`}`);
 
     return {
@@ -237,6 +243,56 @@ class Generate {
           const newModel = new Model(args.data);
           await newModel.save();
           return newModel;
+        };
+        break;
+
+      case `create${this.modelName}s`:
+        return async (root: any, args: { data: any }, ctx: any) => {
+          const allRecords = await Model.insertMany(args.data);
+          return allRecords;
+        };
+        break;
+
+      case `update${this.modelName}`:
+        return async (root: any, args: { id: string; data: any }, ctx: any) => {
+          return await Model.findByIdAndUpdate(args.id, args.data, {
+            new: true,
+          });
+        };
+        break;
+
+      case `update${this.modelName}s`:
+        return async (root: any, args: { data: any }, ctx: any) => {
+          let updatedRecords: any[] = [];
+          await Promise.all(
+            _.map(args.data, async (record: any) => {
+              const updateRecord = await Model.findByIdAndUpdate(
+                record.id,
+                record.data,
+                { new: true }
+              );
+              updatedRecords.push(updateRecord);
+            })
+          );
+          return updatedRecords;
+        };
+        break;
+
+      case `delete${this.modelName}`:
+        return async (root: any, args: { id: string; data: any }, ctx: any) => {
+          await Model.findByIdAndDelete(args.id);
+          return true;
+        };
+        break;
+
+      case `delete${this.modelName}s`:
+        return async (root: any, args: { ids: any }, ctx: any) => {
+          await Promise.all(
+            _.map(args.ids, async (id: any) => {
+              const deleteRecord = await Model.findByIdAndDelete(id);
+            })
+          );
+          return true;
         };
         break;
 
