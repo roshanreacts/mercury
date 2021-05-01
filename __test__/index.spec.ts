@@ -17,6 +17,7 @@ describe("Init mercury", () => {
 
     expect(mercury.schema).toBeDefined();
     expect(mercury.resolvers).toBeDefined();
-    expect(mercury.dataModels.length).toBeGreaterThan(3);
+    expect(mercury.dataModels.Schemas).toBeDefined();
+    expect(mercury.dataModels.Models).toBeDefined();
   });
 });

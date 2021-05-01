@@ -38,7 +38,10 @@ class Mercury {
   }`,
   ];
   private _resolvers: any;
-  private _dbModels: any[] = [];
+  private _dbModels: { Schemas: any; Models: any } = {
+    Schemas: {},
+    Models: {},
+  };
 
   mongooseUri = "";
   realmoosePath = "";
@@ -86,8 +89,8 @@ class Mercury {
     const createModel = create.createList({ _model: name, ...schema });
     this._schema.push(createModel.schema);
     this._resolvers = mergeResolvers([this._resolvers, createModel.resolver]);
-    this._dbModels.push({ [`${name}Schema`]: createModel.models.mongoSchema });
-    this._dbModels.push({ [`${name}Model`]: createModel.models.mongoModel });
+    this._dbModels.Schemas[`${name}Schema`] = createModel.models.mongoSchema;
+    this._dbModels.Models[`${name}Model`] = createModel.models.mongoModel;
   }
 }
 
