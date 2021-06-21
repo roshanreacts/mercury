@@ -1,5 +1,6 @@
 import _ from "lodash";
 import { Schema, model } from "mongoose";
+import { Schema as RealmSchema, Model as RealmModel } from "realmoose";
 import Resolvers from "./Resolvers";
 
 const fieldsTypeMap = [
@@ -13,11 +14,18 @@ const mongoFieldsTypeMap = [
   { type: "number", value: "Number" },
   { type: "boolean", value: "Boolean" },
 ];
+const realmFieldsTypeMap = [
+  { type: "string", value: "string" },
+  { type: "number", value: "int" },
+  { type: "boolean", value: "bool" },
+];
 
 class Generate {
+  adapter: DbAdapter;
   modelName: string;
   modelFields: FieldsMap;
-  constructor(schema: schemaType) {
+  constructor(schema: schemaType, adapter: DbAdapter) {
+    this.adapter = adapter;
     this.modelName = schema._model;
     this.modelFields = schema.fields;
   }
@@ -143,10 +151,11 @@ class Generate {
     };
   }
 
-  getFieldType(fieldType: string, ref: "gql" | "mongo" = "gql") {
+  getFieldType(fieldType: string, ref: "gql" | "mongo" | "realm" = "gql") {
     let refType;
     if (ref === "gql") refType = fieldsTypeMap;
     if (ref === "mongo") refType = mongoFieldsTypeMap;
+    if (ref === "realm") refType = realmFieldsTypeMap;
     return _.find(refType, ["type", fieldType])?.value;
   }
 
@@ -183,19 +192,25 @@ class Generate {
   graphqlResolver(
     queries: Array<string>,
     mutation: Array<string>,
-    model: any
+    dbModel: any
   ): ModelResolvers {
     let Query: any = {};
     let Mutation: any = {};
 
     //   Queries
     _.map(queries, (query) => {
-      Query[query] = this.Resolvers().mapMongoResolver(query, model);
+      Query[query] =
+        this.adapter === "realmoose"
+          ? this.Resolvers().mapRealmResolvers(query, dbModel)
+          : this.Resolvers().mapMongoResolver(query, dbModel);
     });
 
     //   Mutations
     _.map(mutation, (mutate) => {
-      Mutation[mutate] = this.Resolvers().mapMongoResolver(mutate, model);
+      Mutation[mutate] =
+        this.adapter === "realmoose"
+          ? this.Resolvers().mapRealmResolvers(mutate, dbModel)
+          : this.Resolvers().mapMongoResolver(mutate, dbModel);
     });
     return { Query, Mutation };
   }
@@ -213,14 +228,35 @@ class Generate {
 
       mongoSchemaObj[fieldName] = fieldSchema;
     });
-    const mongoSchema = new Schema(mongoSchemaObj, {
+    const newSchema = new Schema(mongoSchemaObj, {
       timestamps: { createdAt: "createdOn", updatedAt: "updatedOn" },
       toObject: { virtuals: true },
     });
-    const mongoModel = model(this.modelName, mongoSchemaObj);
+    const newModel = model(this.modelName, mongoSchemaObj);
     return {
-      mongoSchema,
-      mongoModel,
+      newSchema,
+      newModel,
+    };
+  }
+
+  // Realmoose model generator
+  realmModel() {
+    const realmSchemaObj: any = {};
+    _.mapKeys(this.modelFields, (fieldObj, fieldName) => {
+      let fieldSchema: any = {
+        type: this.getFieldType(fieldObj.type, "realm"),
+      };
+      if (_.has(fieldObj, "isRequired"))
+        fieldSchema.required = fieldObj.isRequired;
+      if (_.has(fieldObj, "default")) fieldSchema.default = fieldObj.default;
+
+      realmSchemaObj[fieldName] = fieldSchema;
+    });
+    const newSchema = RealmSchema(realmSchemaObj);
+    const newModel = RealmModel(this.modelName, newSchema);
+    return {
+      newSchema,
+      newModel,
     };
   }
 }

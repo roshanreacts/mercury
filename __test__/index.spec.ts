@@ -5,7 +5,7 @@ describe("Init mercury", () => {
   let mercury: any;
   beforeAll(() => {
     mercury = new Mercury({
-      db: { adapter: "realmoose", path: "test.realm" },
+      db: { adapter: "mongoose", path: "mongodb://localhost:27017/myapp" },
     });
   });
   it("should initialize mercury", () => {

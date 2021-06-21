@@ -2,7 +2,8 @@ import Create from "./lib/Create";
 import _ from "lodash";
 import mongoose from "mongoose";
 import { mergeTypeDefs, mergeResolvers } from "@graphql-tools/merge";
-
+import realmoose from "realmoose";
+import realm from "realm";
 class Mercury {
   private _schema: string[] = [
     `
@@ -43,24 +44,29 @@ class Mercury {
     Models: {},
   };
 
-  mongooseUri = "";
-  realmoosePath = "";
-  realmooseAppId = "";
+  adapter: DbAdapter;
+  path: string;
 
   constructor(options: {
-    db: { adapter: "mongoose" | "realmoose"; path: string; appId?: string };
+    db: { adapter: DbAdapter; path: string; appId?: string };
   }) {
     const {
       db: { adapter, path, appId },
     } = options;
-    this;
-    mongoose.Promise = global.Promise;
-    mongoose.connect(path, {
-      useNewUrlParser: true,
-      useCreateIndex: true,
-      useFindAndModify: false,
-      useUnifiedTopology: true,
-    });
+    this.adapter = adapter;
+    this.path = path;
+    if (adapter === "mongoose") {
+      mongoose.Promise = global.Promise;
+      mongoose.connect(path, {
+        useNewUrlParser: true,
+        useCreateIndex: true,
+        useFindAndModify: false,
+        useUnifiedTopology: true,
+      });
+    }
+    // if (adapter === "realmoose") {
+    //   realmoose.connect({ version: 0, path: path });
+    // }
   }
 
   get schema(): any {
@@ -89,8 +95,8 @@ class Mercury {
     const createModel = create.createList({ _model: name, ...schema });
     this._schema.push(createModel.schema);
     this._resolvers = mergeResolvers([this._resolvers, createModel.resolver]);
-    this._dbModels.Schemas[`${name}Schema`] = createModel.models.mongoSchema;
-    this._dbModels.Models[`${name}Model`] = createModel.models.mongoModel;
+    this._dbModels.Schemas[`${name}Schema`] = createModel.models.newSchema;
+    this._dbModels.Models[`${name}Model`] = createModel.models.newModel;
   }
 }
 

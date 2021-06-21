@@ -8,14 +8,21 @@ class Create {
   }
 
   createList(reqSchema: schemaType) {
-    const generate = new Generate(reqSchema);
+    const generate = new Generate(reqSchema, this.mercury.adapter);
     const getSchema = generate.grpahqlSchema();
-    const dbModels = generate.mongoModel();
+
+    // Generate model base on adapter;
+    let dbModels: any = generate.mongoModel();
+    if (this.mercury.adapter === "realmoose") {
+      dbModels = generate.realmModel();
+    }
     const getResolver = generate.graphqlResolver(
       getSchema.query,
       getSchema.mutation,
-      dbModels.mongoModel
+      dbModels.newModel
     );
+
+    // Merge Resolvers
     let mergedResolver = getResolver;
     if (reqSchema.resolvers != null) {
       mergedResolver = this.replaceresolvers(reqSchema.resolvers, getResolver);

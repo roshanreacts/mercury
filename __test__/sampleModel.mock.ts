@@ -10,8 +10,10 @@ export const TodoSchema = {
     },
   },
   resolvers: {
-    getTodo: (root: any, args: any, schema: any) => {
-      return { id: "NS2343", name: "Roshan", isCompleted: false };
+    Query: {
+      getTodo: (root: any, args: any, schema: any) => {
+        return { id: "NS2343", name: "Roshan", isCompleted: false };
+      },
     },
   },
 };

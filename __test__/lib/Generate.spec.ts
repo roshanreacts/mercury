@@ -10,10 +10,13 @@ import {
 describe("shoudl validate generate", () => {
   let generate: any;
   beforeAll(() => {
-    generate = new Generate({
-      _model: "User",
-      ...UserSchema,
-    });
+    generate = new Generate(
+      {
+        _model: "User",
+        ...UserSchema,
+      },
+      "realmoose"
+    );
   });
   it("should get type for gql", () => {
     const getString = generate.getFieldType("string");
@@ -47,10 +50,16 @@ describe("shoudl validate generate", () => {
   });
 
   it("should generate Mongo Model", async () => {
-    const { mongoSchema, mongoModel } = generate.mongoModel();
+    const { newSchema, newModel } = generate.mongoModel();
     // console.log(mongoSchema, mongoModel);
-    expect(mongoSchema).toBeDefined();
-    expect(mongoModel).toBeDefined();
+    expect(newSchema).toBeDefined();
+    expect(newModel).toBeDefined();
+  });
+  it("should generate Realm Model", async () => {
+    const { newSchema, newModel } = generate.realmModel();
+    console.log(newSchema, newModel);
+    expect(newSchema).toBeDefined();
+    expect(newModel).toBeDefined();
   });
 
   it("should generate where input ID", () => {
@@ -64,27 +73,5 @@ describe("shoudl validate generate", () => {
   it("should generate where input Int", () => {
     const genWhereInput = generate.generateWhereInput("orgUsers", "Int");
     expect(genWhereInput).toBe(`  orgUsers: whereInt`);
-  });
-  it("should compose where input to schema", () => {
-    const input = {
-      id: {
-        isNot: "687y787g637ge3e3y7823e",
-      },
-      firstName: {
-        startsWith: "Roshan",
-      },
-      todosCount: { gt: 1 },
-    };
-    const getWhereSchema = generate.whereInputCompose(input);
-    expect(getWhereSchema).toStrictEqual({
-      _id: { $ne: "687y787g637ge3e3y7823e" },
-      firstName: {
-        $regex: "^Roshan",
-        $options: "i",
-      },
-      todosCount: {
-        $gt: 1,
-      },
-    });
   });
 });

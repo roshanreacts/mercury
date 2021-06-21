@@ -165,6 +165,24 @@ class Resolvers {
     });
     return querySchema;
   }
+  mapRealmResolvers(name: string, Model: any) {
+    switch (name) {
+      case `create${this.modelName}`:
+        return (root: any, args: { data: any }, ctx: any) => {
+          console.log(Model);
+          const newRec = Model.create(args.data);
+          return newRec;
+        };
+        break;
+      default:
+        return (root: any, args: { data: any }, ctx: any) => {
+          console.log(root);
+          console.log(args.data);
+          console.log(ctx);
+        };
+        break;
+    }
+  }
 }
 
 export default Resolvers;
