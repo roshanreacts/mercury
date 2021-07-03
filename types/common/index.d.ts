@@ -3,4 +3,4 @@ interface Mercury {
   path: string;
 }
 
-type DbAdapter = "mongoose" | "realmoose";
+type DbAdapter = "mongoose";

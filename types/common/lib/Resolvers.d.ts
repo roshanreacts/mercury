@@ -3,3 +3,5 @@ interface Resolvers {
   modelName: string;
   modelFields: FieldsMap;
 }
+
+type PopulateType = Array<{ path: string; select: string; options?: any }>;

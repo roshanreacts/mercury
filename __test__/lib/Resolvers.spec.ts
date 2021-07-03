@@ -16,7 +16,7 @@ describe("Resolver Test", () => {
         _model: "User",
         ...UserSchema,
       },
-      "realmoose"
+      "mongoose"
     );
     resolvers = new Resolvers(generate);
   });

@@ -8,6 +8,11 @@ export const TodoSchema = {
       type: "boolean",
       default: false,
     },
+    owner: {
+      type: "relationship",
+      ref: "User",
+      many: false,
+    },
   },
   resolvers: {
     Query: {

@@ -1,4 +1,6 @@
 import _ from "lodash";
+import graphqlFields from "graphql-fields";
+
 class Resolvers {
   modelName: string;
   modelFields: FieldsMap;
@@ -9,21 +11,53 @@ class Resolvers {
     this.modelFields = base.modelFields;
   }
 
+  resolvePopulate(resolveInfo: any): PopulateType {
+    const pickRef = _.pickBy(this.modelFields, (item) => _.has(item, "ref"));
+    const populateFields = _.keys(pickRef);
+    const parentFields = graphqlFields(resolveInfo);
+    let populate: PopulateType = [];
+    _.map(populateFields, (item) => {
+      if (_.has(parentFields, item)) {
+        const refModel = this.modelFields[item].ref;
+        const select = _.keys(parentFields[item]);
+        populate.push({
+          path: item,
+          select: select.join(" "),
+        });
+      }
+    });
+    return populate;
+  }
+
   mapMongoResolver(name: string, Model: any) {
     // createModel resolver
     switch (name) {
       // Queries
       case `all${this.modelName}s`:
-        return async (root: any, args: { where: any }, ctx: any) => {
-          const findAll = await Model.find(this.whereInputCompose(args.where));
+        return async (
+          root: any,
+          args: { where: any },
+          ctx: any,
+          resolveInfo: any
+        ) => {
+          const populate = this.resolvePopulate(resolveInfo);
+          const findAll = await Model.find(
+            this.whereInputCompose(args.where)
+          ).populate(populate);
           return findAll;
         };
         break;
       case `get${this.modelName}`:
-        return async (root: any, args: { where: any }, ctx: any) => {
+        return async (
+          root: any,
+          args: { where: any },
+          ctx: any,
+          resolveInfo: any
+        ) => {
+          const populate = this.resolvePopulate(resolveInfo);
           const findOne = await Model.findOne(
             this.whereInputCompose(args.where)
-          );
+          ).populate(populate);
           return findOne;
         };
         break;
@@ -87,11 +121,7 @@ class Resolvers {
         break;
 
       default:
-        return (root: any, args: { data: any }, ctx: any) => {
-          console.log(root);
-          console.log(args.data);
-          console.log(ctx);
-        };
+        return (root: any, args: { data: any }, ctx: any) => {};
         break;
     }
   }
@@ -164,24 +194,6 @@ class Resolvers {
       }
     });
     return querySchema;
-  }
-  mapRealmResolvers(name: string, Model: any) {
-    switch (name) {
-      case `create${this.modelName}`:
-        return (root: any, args: { data: any }, ctx: any) => {
-          console.log(Model);
-          const newRec = Model.create(args.data);
-          return newRec;
-        };
-        break;
-      default:
-        return (root: any, args: { data: any }, ctx: any) => {
-          console.log(root);
-          console.log(args.data);
-          console.log(ctx);
-        };
-        break;
-    }
   }
 }
 

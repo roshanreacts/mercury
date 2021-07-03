@@ -6,6 +6,8 @@ interface FieldsMap {
     skipGraphql?: boolean;
     renameGraphql?: string;
     updatable?: boolean;
+    many?: boolean;
+    ref: string;
   };
 }
 

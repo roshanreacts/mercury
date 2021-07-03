@@ -1,23 +1,19 @@
 import _ from "lodash";
 import { Schema, model } from "mongoose";
-import { Schema as RealmSchema, Model as RealmModel } from "realmoose";
 import Resolvers from "./Resolvers";
 
 const fieldsTypeMap = [
   { type: "string", value: "String" },
   { type: "number", value: "Int" },
   { type: "boolean", value: "Boolean" },
+  { type: "relationship", value: "scalar" },
 ];
 
 const mongoFieldsTypeMap = [
   { type: "string", value: "String" },
   { type: "number", value: "Number" },
   { type: "boolean", value: "Boolean" },
-];
-const realmFieldsTypeMap = [
-  { type: "string", value: "string" },
-  { type: "number", value: "int" },
-  { type: "boolean", value: "bool" },
+  { type: "relationship", value: Schema.Types.ObjectId },
 ];
 
 class Generate {
@@ -59,7 +55,7 @@ class Generate {
     genSchema.push(this.generateWhereInput("id", "ID"));
     _.mapKeys(this.modelFields, (fieldObj, fieldName) => {
       const fieldType = this.getFieldType(fieldObj.type);
-      if (fieldType) {
+      if (fieldType && fieldType !== "scalar" && typeof fieldType == "string") {
         genSchema.push(this.generateWhereInput(fieldName, fieldType));
       }
     });
@@ -107,9 +103,13 @@ class Generate {
 
     _.mapKeys(this.modelFields, (fieldObj, fieldName) => {
       genSchema.push(
-        `  ${fieldName}: ${this.getFieldType(fieldObj.type)}${
-          fieldObj.isRequired ? "!" : ""
-        }`
+        `  ${fieldName}: ${
+          this.getFieldType(fieldObj.type) === "scalar"
+            ? fieldObj.many
+              ? `[${fieldObj.ref}]`
+              : fieldObj.ref
+            : this.getFieldType(fieldObj.type)
+        }${fieldObj.isRequired ? "!" : ""}`
       );
     });
 
@@ -121,9 +121,11 @@ class Generate {
     genSchema.push(`input create${this.modelName}Input {`);
     _.mapKeys(this.modelFields, (fieldObj, fieldName) => {
       genSchema.push(
-        `  ${fieldName}: ${this.getFieldType(fieldObj.type)}${
-          fieldObj.isRequired ? "!" : ""
-        }`
+        `  ${fieldName}: ${
+          this.getFieldType(fieldObj.type) === "scalar"
+            ? `create${fieldObj.ref}Input`
+            : this.getFieldType(fieldObj.type)
+        }${fieldObj.isRequired ? "!" : ""}`
       );
     });
     // Close input type
@@ -132,7 +134,13 @@ class Generate {
     // ********* Declare Model Update Input type **********
     genSchema.push(`input update${this.modelName}Schema {`);
     _.mapKeys(this.modelFields, (fieldObj, fieldName) => {
-      genSchema.push(`  ${fieldName}: ${this.getFieldType(fieldObj.type)}`);
+      genSchema.push(
+        `  ${fieldName}: ${
+          this.getFieldType(fieldObj.type) === "scalar"
+            ? `update${fieldObj.ref}Input`
+            : this.getFieldType(fieldObj.type)
+        }`
+      );
     });
     // Close input type
     genSchema.push(`}`);
@@ -151,11 +159,10 @@ class Generate {
     };
   }
 
-  getFieldType(fieldType: string, ref: "gql" | "mongo" | "realm" = "gql") {
+  getFieldType(fieldType: string, ref: "gql" | "mongo" = "gql") {
     let refType;
     if (ref === "gql") refType = fieldsTypeMap;
     if (ref === "mongo") refType = mongoFieldsTypeMap;
-    if (ref === "realm") refType = realmFieldsTypeMap;
     return _.find(refType, ["type", fieldType])?.value;
   }
 
@@ -199,18 +206,12 @@ class Generate {
 
     //   Queries
     _.map(queries, (query) => {
-      Query[query] =
-        this.adapter === "realmoose"
-          ? this.Resolvers().mapRealmResolvers(query, dbModel)
-          : this.Resolvers().mapMongoResolver(query, dbModel);
+      Query[query] = this.Resolvers().mapMongoResolver(query, dbModel);
     });
 
     //   Mutations
     _.map(mutation, (mutate) => {
-      Mutation[mutate] =
-        this.adapter === "realmoose"
-          ? this.Resolvers().mapRealmResolvers(mutate, dbModel)
-          : this.Resolvers().mapMongoResolver(mutate, dbModel);
+      Mutation[mutate] = this.Resolvers().mapMongoResolver(mutate, dbModel);
     });
     return { Query, Mutation };
   }
@@ -225,35 +226,15 @@ class Generate {
       if (_.has(fieldObj, "isRequired"))
         fieldSchema.required = fieldObj.isRequired;
       if (_.has(fieldObj, "default")) fieldSchema.default = fieldObj.default;
-
-      mongoSchemaObj[fieldName] = fieldSchema;
+      if (_.has(fieldObj, "ref")) fieldSchema.ref = fieldObj.ref;
+      mongoSchemaObj[fieldName] =
+        _.has(fieldObj, "many") && fieldObj.many ? [fieldSchema] : fieldSchema;
     });
     const newSchema = new Schema(mongoSchemaObj, {
       timestamps: { createdAt: "createdOn", updatedAt: "updatedOn" },
       toObject: { virtuals: true },
     });
     const newModel = model(this.modelName, mongoSchemaObj);
-    return {
-      newSchema,
-      newModel,
-    };
-  }
-
-  // Realmoose model generator
-  realmModel() {
-    const realmSchemaObj: any = {};
-    _.mapKeys(this.modelFields, (fieldObj, fieldName) => {
-      let fieldSchema: any = {
-        type: this.getFieldType(fieldObj.type, "realm"),
-      };
-      if (_.has(fieldObj, "isRequired"))
-        fieldSchema.required = fieldObj.isRequired;
-      if (_.has(fieldObj, "default")) fieldSchema.default = fieldObj.default;
-
-      realmSchemaObj[fieldName] = fieldSchema;
-    });
-    const newSchema = RealmSchema(realmSchemaObj);
-    const newModel = RealmModel(this.modelName, newSchema);
     return {
       newSchema,
       newModel,

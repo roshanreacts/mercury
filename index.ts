@@ -2,8 +2,6 @@ import Create from "./lib/Create";
 import _ from "lodash";
 import mongoose from "mongoose";
 import { mergeTypeDefs, mergeResolvers } from "@graphql-tools/merge";
-import realmoose from "realmoose";
-import realm from "realm";
 class Mercury {
   private _schema: string[] = [
     `
@@ -64,9 +62,6 @@ class Mercury {
         useUnifiedTopology: true,
       });
     }
-    // if (adapter === "realmoose") {
-    //   realmoose.connect({ version: 0, path: path });
-    // }
   }
 
   get schema(): any {

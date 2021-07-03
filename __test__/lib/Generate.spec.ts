@@ -15,7 +15,7 @@ describe("shoudl validate generate", () => {
         _model: "User",
         ...UserSchema,
       },
-      "realmoose"
+      "mongoose"
     );
   });
   it("should get type for gql", () => {
@@ -51,13 +51,6 @@ describe("shoudl validate generate", () => {
 
   it("should generate Mongo Model", async () => {
     const { newSchema, newModel } = generate.mongoModel();
-    // console.log(mongoSchema, mongoModel);
-    expect(newSchema).toBeDefined();
-    expect(newModel).toBeDefined();
-  });
-  it("should generate Realm Model", async () => {
-    const { newSchema, newModel } = generate.realmModel();
-    console.log(newSchema, newModel);
     expect(newSchema).toBeDefined();
     expect(newModel).toBeDefined();
   });

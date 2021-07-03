@@ -13,9 +13,6 @@ class Create {
 
     // Generate model base on adapter;
     let dbModels: any = generate.mongoModel();
-    if (this.mercury.adapter === "realmoose") {
-      dbModels = generate.realmModel();
-    }
     const getResolver = generate.graphqlResolver(
       getSchema.query,
       getSchema.mutation,
