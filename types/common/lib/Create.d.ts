@@ -7,7 +7,9 @@ interface FieldsMap {
     renameGraphql?: string;
     updatable?: boolean;
     many?: boolean;
-    ref: string;
+    ref?: string;
+    enum?: Array<string | number>;
+    enumType?: string;
   };
 }
 
@@ -16,8 +18,8 @@ interface ResolversMap {
 }
 
 interface ModelResolvers {
-  Query: ResolversMap;
-  Mutation: ResolversMap;
+  Query?: ResolversMap;
+  Mutation?: ResolversMap;
 }
 
 interface schemaType {

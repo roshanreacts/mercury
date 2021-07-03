@@ -62,6 +62,17 @@ export const UserSchema = {
       type: "boolean",
       default: false,
     },
+    role: {
+      type: "enum",
+      enumType: "string",
+      enum: ["NEW", "STATUS"],
+      default: "NEW",
+    },
+    todos: {
+      type: "relationship",
+      ref: "Todo",
+      many: true,
+    },
   },
 };
 
@@ -109,6 +120,8 @@ input whereUserInput {
   lastName: whereString
   todosCount: whereInt
   isAdmin: Boolean
+
+
   AND: [whereUserInput]
   OR: [whereUserInput]
 }
@@ -128,6 +141,8 @@ type User {
   lastName: String
   todosCount: Int
   isAdmin: Boolean
+  role: UserRoleEnumType
+  todos: [Todo]
 }
 
 input createUserInput {
@@ -135,16 +150,26 @@ input createUserInput {
   lastName: String
   todosCount: Int
   isAdmin: Boolean
+  role: UserRoleEnumType
+  todos: createTodoInput
 }
 input updateUserSchema {
   firstName: String
   lastName: String
   todosCount: Int
   isAdmin: Boolean
+  role: UserRoleEnumType
+  todos: updateTodoInput
 }
 
 input updateUserInput {
   id: ID!
   data: updateUserSchema!
 }
+
+enum UserRoleEnumType {
+  NEW
+  STATUS
+}
+
 `;

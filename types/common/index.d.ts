@@ -4,3 +4,7 @@ interface Mercury {
 }
 
 type DbAdapter = "mongoose";
+
+declare interface String {
+  toProperCase: () => string;
+}

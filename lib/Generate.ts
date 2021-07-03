@@ -6,13 +6,19 @@ const fieldsTypeMap = [
   { type: "string", value: "String" },
   { type: "number", value: "Int" },
   { type: "boolean", value: "Boolean" },
-  { type: "relationship", value: "scalar" },
+  { type: "float", value: "Float" },
+  { type: "enum", value: "enum" },
+  { type: "date", value: "DateTime" },
+  { type: "relationship", value: "relationship" },
 ];
 
 const mongoFieldsTypeMap = [
   { type: "string", value: "String" },
   { type: "number", value: "Number" },
+  { type: "float", value: Schema.Types.Decimal128 },
   { type: "boolean", value: "Boolean" },
+  { type: "date", value: Date },
+  { type: "enum", value: "enum" },
   { type: "relationship", value: Schema.Types.ObjectId },
 ];
 
@@ -20,10 +26,14 @@ class Generate {
   adapter: DbAdapter;
   modelName: string;
   modelFields: FieldsMap;
+  genSchema: Array<string>;
+  addGrpahqlSchema: string[];
   constructor(schema: schemaType, adapter: DbAdapter) {
     this.adapter = adapter;
     this.modelName = schema._model;
     this.modelFields = schema.fields;
+    this.genSchema = [];
+    this.addGrpahqlSchema = [];
   }
 
   Resolvers(): Resolvers {
@@ -31,62 +41,61 @@ class Generate {
   }
 
   grpahqlSchema() {
-    const genSchema: Array<string> = [];
     const queries: Array<string> = [];
     const mutation: Array<string> = [];
 
-    genSchema.push(``);
+    this.genSchema.push(``);
 
     // ********* Generate Queries **********
-    genSchema.push(`type Query {`);
+    this.genSchema.push(`type Query {`);
     // get All of the Model
-    genSchema.push(
+    this.genSchema.push(
       `  all${this.modelName}s(where: where${this.modelName}Input): [${this.modelName}]`
     );
     // get one item from the model
-    genSchema.push(
+    this.genSchema.push(
       `  get${this.modelName}(where: where${this.modelName}Input): ${this.modelName}`
     );
-    genSchema.push(`}`);
-    genSchema.push(``);
+    this.genSchema.push(`}`);
+    this.genSchema.push(``);
 
     // Queries whereInput types
-    genSchema.push(`input where${this.modelName}Input {`);
-    genSchema.push(this.generateWhereInput("id", "ID"));
+    this.genSchema.push(`input where${this.modelName}Input {`);
+    this.genSchema.push(this.generateWhereInput("id", "ID"));
     _.mapKeys(this.modelFields, (fieldObj, fieldName) => {
       const fieldType = this.getFieldType(fieldObj.type);
       if (fieldType && fieldType !== "scalar" && typeof fieldType == "string") {
-        genSchema.push(this.generateWhereInput(fieldName, fieldType));
+        this.genSchema.push(this.generateWhereInput(fieldName, fieldType));
       }
     });
-    genSchema.push(`  AND: [where${this.modelName}Input]`);
-    genSchema.push(`  OR: [where${this.modelName}Input]`);
-    genSchema.push(`}`);
-    genSchema.push(``);
+    this.genSchema.push(`  AND: [where${this.modelName}Input]`);
+    this.genSchema.push(`  OR: [where${this.modelName}Input]`);
+    this.genSchema.push(`}`);
+    this.genSchema.push(``);
 
     // Queries
     queries.push(`all${this.modelName}s`);
     queries.push(`get${this.modelName}`);
 
     // ********* Generate Mutations **********
-    genSchema.push(`type Mutation {`);
+    this.genSchema.push(`type Mutation {`);
     // mutate model with Create, Update, Delete
-    genSchema.push(
+    this.genSchema.push(
       `  create${this.modelName}(data: create${this.modelName}Input!): ${this.modelName}`
     );
-    genSchema.push(
+    this.genSchema.push(
       `  create${this.modelName}s(data: [create${this.modelName}Input!]!): [${this.modelName}]`
     );
-    genSchema.push(
+    this.genSchema.push(
       `  update${this.modelName}(id: ID!, data: update${this.modelName}Schema!): ${this.modelName}`
     );
-    genSchema.push(
+    this.genSchema.push(
       `  update${this.modelName}s(data: [update${this.modelName}Input!]!): [${this.modelName}]`
     );
-    genSchema.push(`  delete${this.modelName}(id: ID!): Boolean`);
-    genSchema.push(`  delete${this.modelName}s(ids: [ID!]): Boolean`);
-    genSchema.push(`}`);
-    genSchema.push(``);
+    this.genSchema.push(`  delete${this.modelName}(id: ID!): Boolean`);
+    this.genSchema.push(`  delete${this.modelName}s(ids: [ID!]): Boolean`);
+    this.genSchema.push(`}`);
+    this.genSchema.push(``);
 
     // Mutations
     mutation.push(`create${this.modelName}`);
@@ -97,66 +106,113 @@ class Generate {
     mutation.push(`delete${this.modelName}s`);
 
     // ********* Declare Model type **********
-    genSchema.push(`type ${this.modelName} {`);
+    this.genSchema.push(`type ${this.modelName} {`);
     // Add Id
-    genSchema.push(`  id: ID!`);
+    this.genSchema.push(`  id: ID!`);
 
-    _.mapKeys(this.modelFields, (fieldObj, fieldName) => {
-      genSchema.push(
-        `  ${fieldName}: ${
-          this.getFieldType(fieldObj.type) === "scalar"
-            ? fieldObj.many
-              ? `[${fieldObj.ref}]`
-              : fieldObj.ref
-            : this.getFieldType(fieldObj.type)
-        }${fieldObj.isRequired ? "!" : ""}`
-      );
-    });
+    _.mapKeys(
+      this.modelFields,
+      (fieldObj: { [key: string]: any }, fieldName: string) => {
+        this.genSchema.push(
+          `  ${fieldName}: ${this.getGraphqlField(fieldObj, fieldName)}${
+            fieldObj.isRequired ? "!" : ""
+          }`
+        );
+      }
+    );
 
     // Close type
-    genSchema.push(`}`);
-    genSchema.push(``);
+    this.genSchema.push(`}`);
+    this.genSchema.push(``);
 
     // ********* Declare Model Input type **********
-    genSchema.push(`input create${this.modelName}Input {`);
+    this.genSchema.push(`input create${this.modelName}Input {`);
     _.mapKeys(this.modelFields, (fieldObj, fieldName) => {
-      genSchema.push(
-        `  ${fieldName}: ${
-          this.getFieldType(fieldObj.type) === "scalar"
-            ? `create${fieldObj.ref}Input`
-            : this.getFieldType(fieldObj.type)
-        }${fieldObj.isRequired ? "!" : ""}`
+      this.genSchema.push(
+        `  ${fieldName}: ${this.getGraphqlField(
+          fieldObj,
+          fieldName,
+          "create"
+        )}${fieldObj.isRequired ? "!" : ""}`
       );
     });
     // Close input type
-    genSchema.push(`}`);
+    this.genSchema.push(`}`);
 
     // ********* Declare Model Update Input type **********
-    genSchema.push(`input update${this.modelName}Schema {`);
+    this.genSchema.push(`input update${this.modelName}Schema {`);
     _.mapKeys(this.modelFields, (fieldObj, fieldName) => {
-      genSchema.push(
-        `  ${fieldName}: ${
-          this.getFieldType(fieldObj.type) === "scalar"
-            ? `update${fieldObj.ref}Input`
-            : this.getFieldType(fieldObj.type)
-        }`
+      this.genSchema.push(
+        `  ${fieldName}: ${this.getGraphqlField(fieldObj, fieldName, "update")}`
       );
     });
     // Close input type
-    genSchema.push(`}`);
+    this.genSchema.push(`}`);
 
     // Update Input
-    genSchema.push(``);
-    genSchema.push(`input update${this.modelName}Input {`);
-    genSchema.push(`  id: ID!`);
-    genSchema.push(`  data: update${this.modelName}Schema!`);
-    genSchema.push(`}`);
+    this.genSchema.push(``);
+    this.genSchema.push(`input update${this.modelName}Input {`);
+    this.genSchema.push(`  id: ID!`);
+    this.genSchema.push(`  data: update${this.modelName}Schema!`);
+    this.genSchema.push(`}`);
 
     return {
-      schema: this.arrToString(genSchema),
+      schema: this.arrToString(_.concat(this.genSchema, this.addGrpahqlSchema)),
       query: queries,
       mutation: mutation,
     };
+  }
+
+  getGraphqlField(
+    field: { [key: string]: any },
+    fieldName: string,
+    schemaType: string = "query"
+  ) {
+    switch (field.type) {
+      case "string":
+      case "boolean":
+      case "number":
+      case "float":
+      case "date":
+        return field.many
+          ? `[${this.getFieldType(field.type)}]`
+          : this.getFieldType(field.type);
+        break;
+      case "enum":
+        // Push enum values to schema and create a type
+        if (
+          !_.includes(
+            this.addGrpahqlSchema,
+            `enum ${this.modelName}${fieldName.toProperCase()}EnumType {`
+          )
+        ) {
+          this.addGrpahqlSchema.push(``);
+          this.addGrpahqlSchema.push(
+            `enum ${this.modelName}${fieldName.toProperCase()}EnumType {`
+          );
+          _.map(field.enum, (key) => {
+            this.addGrpahqlSchema.push(`  ${key}`);
+          });
+          this.addGrpahqlSchema.push(`}`);
+          this.addGrpahqlSchema.push(``);
+        }
+        return `${this.modelName}${fieldName.toProperCase()}EnumType`;
+        break;
+      case "date":
+        return this.getFieldType(field.type);
+        break;
+      case "relationship":
+        if (schemaType === "create") {
+          return `create${field.ref}Input`;
+        }
+        if (schemaType === "update") {
+          return `update${field.ref}Input`;
+        }
+        return field.many ? `[${field.ref}]` : field.ref;
+        break;
+      default:
+        break;
+    }
   }
 
   getFieldType(fieldType: string, ref: "gql" | "mongo" = "gql") {
@@ -190,8 +246,12 @@ class Generate {
         return `  ${Field}: whereInt`;
         break;
 
+      case "Boolean":
+        return `  ${Field}: Boolean`;
+        break;
+
       default:
-        return `  ${Field}: ${type}`;
+        return ``;
         break;
     }
   }
@@ -221,12 +281,17 @@ class Generate {
     const mongoSchemaObj: any = {};
     _.mapKeys(this.modelFields, (fieldObj, fieldName) => {
       let fieldSchema: any = {
-        type: this.getFieldType(fieldObj.type, "mongo"),
+        type:
+          this.getFieldType(fieldObj.type, "mongo") === "enum" &&
+          fieldObj.enumType
+            ? this.getFieldType(fieldObj.enumType, "mongo")
+            : this.getFieldType(fieldObj.type, "mongo"),
       };
       if (_.has(fieldObj, "isRequired"))
         fieldSchema.required = fieldObj.isRequired;
       if (_.has(fieldObj, "default")) fieldSchema.default = fieldObj.default;
       if (_.has(fieldObj, "ref")) fieldSchema.ref = fieldObj.ref;
+      if (_.has(fieldObj, "enum")) fieldSchema.enum = fieldObj.enum;
       mongoSchemaObj[fieldName] =
         _.has(fieldObj, "many") && fieldObj.many ? [fieldSchema] : fieldSchema;
     });

@@ -2,9 +2,49 @@ import Create from "./lib/Create";
 import _ from "lodash";
 import mongoose from "mongoose";
 import { mergeTypeDefs, mergeResolvers } from "@graphql-tools/merge";
+import ScalarResolver from "./lib/Scalars";
+
+String.prototype.toProperCase = function () {
+  return this.replace(/\w\S*/g, function (txt) {
+    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+  });
+};
 class Mercury {
   private _schema: string[] = [
     `
+  scalar DateTime
+  scalar EncryptString
+  scalar IntString
+  scalar EmailAddress
+  scalar NegativeFloat
+  scalar NegativeInt
+  scalar NonNegativeFloat
+  scalar NonNegativeInt
+  scalar NonPositiveFloat
+  scalar NonPositiveInt
+  scalar PhoneNumber
+  scalar PositiveFloat
+  scalar PositiveInt
+  scalar PostalCode
+  scalar UnsignedFloat
+  scalar UnsignedInt
+  scalar URL
+  scalar BigInt
+  scalar Long
+  scalar GUID
+  scalar HexColorCode
+  scalar HSL
+  scalar HSLA
+  scalar IPv4
+  scalar IPv6
+  scalar ISBN
+  scalar MAC
+  scalar Port
+  scalar RGB
+  scalar RGBA
+  scalar USCurrency
+  scalar JSON
+  scalar JSONObject
   input whereID {
     is: ID
     isNot: ID
@@ -36,7 +76,7 @@ class Mercury {
     notIn: [Int]
   }`,
   ];
-  private _resolvers: any;
+  private _resolvers: any = ScalarResolver;
   private _dbModels: { Schemas: any; Models: any } = {
     Schemas: {},
     Models: {},
@@ -45,23 +85,9 @@ class Mercury {
   adapter: DbAdapter;
   path: string;
 
-  constructor(options: {
-    db: { adapter: DbAdapter; path: string; appId?: string };
-  }) {
-    const {
-      db: { adapter, path, appId },
-    } = options;
-    this.adapter = adapter;
-    this.path = path;
-    if (adapter === "mongoose") {
-      mongoose.Promise = global.Promise;
-      mongoose.connect(path, {
-        useNewUrlParser: true,
-        useCreateIndex: true,
-        useFindAndModify: false,
-        useUnifiedTopology: true,
-      });
-    }
+  constructor() {
+    this.adapter = "mongoose";
+    this.path = "mongodb://localhost:27017/mercuryapp";
   }
 
   get schema(): any {
@@ -75,7 +101,16 @@ class Mercury {
   get dataModels() {
     return this._dbModels;
   }
-
+  connect(path: string) {
+    this.path = path;
+    mongoose.Promise = global.Promise;
+    mongoose.connect(this.path, {
+      useNewUrlParser: true,
+      useCreateIndex: true,
+      useFindAndModify: false,
+      useUnifiedTopology: true,
+    });
+  }
   createList(
     name: string,
     schema: { fields: FieldsMap; resolvers?: ModelResolvers }
@@ -95,4 +130,6 @@ class Mercury {
   }
 }
 
-export default Mercury;
+const mercury = new Mercury();
+
+export default mercury;

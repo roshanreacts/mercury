@@ -1,15 +1,9 @@
-import Mercury from "../index";
+import mercury from "../index";
 import { TodoSchema, TodoGql, UserSchema, UserGql } from "./sampleModel.mock";
 describe("Init mercury", () => {
   // Init the mercury config
-  let mercury: any;
-  beforeAll(() => {
-    mercury = new Mercury({
-      db: { adapter: "mongoose", path: "mongodb://localhost:27017/myapp" },
-    });
-  });
   it("should initialize mercury", () => {
-    expect(mercury.resolvers).toBeUndefined();
+    expect(mercury.resolvers).toBeDefined();
   });
   it("should create list", () => {
     mercury.createList("Todo", TodoSchema);

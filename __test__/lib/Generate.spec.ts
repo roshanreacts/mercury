@@ -7,6 +7,12 @@ import {
   baseTypedefs,
 } from "../sampleModel.mock";
 
+String.prototype.toProperCase = function () {
+  return this.replace(/\w\S*/g, function (txt) {
+    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+  });
+};
+
 describe("shoudl validate generate", () => {
   let generate: any;
   beforeAll(() => {
@@ -66,5 +72,34 @@ describe("shoudl validate generate", () => {
   it("should generate where input Int", () => {
     const genWhereInput = generate.generateWhereInput("orgUsers", "Int");
     expect(genWhereInput).toBe(`  orgUsers: whereInt`);
+  });
+  it("should generate graphql field type", () => {
+    const graphqlString = generate.getGraphqlField(
+      { type: "string", many: false },
+      "role"
+    );
+    const graphqlNumber = generate.getGraphqlField(
+      { type: "number", many: true },
+      "role"
+    );
+    const graphqlFloat = generate.getGraphqlField({ type: "float" }, "role");
+    const graphqlBoolean = generate.getGraphqlField(
+      { type: "boolean" },
+      "role"
+    );
+    const graphqlEnum = generate.getGraphqlField(
+      {
+        type: "enum",
+        enum: ["Roshan", "Vamshi"],
+      },
+      "role"
+    );
+
+    // Expect the field types
+    expect(graphqlString).toBe("String");
+    expect(graphqlNumber).toBe("[Int]");
+    expect(graphqlFloat).toBe("Float");
+    expect(graphqlBoolean).toBe("Boolean");
+    expect(graphqlEnum).toBe("UserRoleEnumType");
   });
 });
