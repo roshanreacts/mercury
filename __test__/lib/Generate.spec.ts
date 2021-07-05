@@ -34,7 +34,7 @@ describe("shoudl validate generate", () => {
 
   it("should generate gql schema", () => {
     const { schema } = generate.grpahqlSchema();
-
+    console.log(schema);
     expect(schema).toBe(UserGql);
   });
 
@@ -94,6 +94,10 @@ describe("shoudl validate generate", () => {
       },
       "role"
     );
+    const graphqlPassword = generate.getGraphqlField(
+      { type: "password" },
+      "password"
+    );
 
     // Expect the field types
     expect(graphqlString).toBe("String");
@@ -101,5 +105,6 @@ describe("shoudl validate generate", () => {
     expect(graphqlFloat).toBe("Float");
     expect(graphqlBoolean).toBe("Boolean");
     expect(graphqlEnum).toBe("UserRoleEnumType");
+    expect(graphqlPassword).toBeUndefined();
   });
 });

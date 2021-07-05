@@ -58,6 +58,10 @@ export const UserSchema = {
       type: "number",
       default: 0,
     },
+    password: {
+      type: "password",
+      isRequired: true,
+    },
     isAdmin: {
       type: "boolean",
       default: false,
@@ -74,6 +78,18 @@ export const UserSchema = {
       many: true,
     },
   },
+  resolvers: {
+    Query: {
+      login: (root: any, args: any, schema: any) => {
+        return { id: "NS2343", name: "Roshan", isCompleted: false };
+      },
+    },
+  },
+  typeDefs: `
+  type Query {
+    login(username: String, password: String): User
+  }
+  `,
 };
 
 export const baseTypedefs = `
@@ -119,8 +135,9 @@ input whereUserInput {
   firstName: whereString
   lastName: whereString
   todosCount: whereInt
-  isAdmin: Boolean
 
+  isAdmin: Boolean
+  role: UserRoleEnumType
 
   AND: [whereUserInput]
   OR: [whereUserInput]
@@ -149,6 +166,7 @@ input createUserInput {
   firstName: String!
   lastName: String
   todosCount: Int
+  password: String!
   isAdmin: Boolean
   role: UserRoleEnumType
   todos: createTodoInput
@@ -157,6 +175,7 @@ input updateUserSchema {
   firstName: String
   lastName: String
   todosCount: Int
+  password: String
   isAdmin: Boolean
   role: UserRoleEnumType
   todos: updateTodoInput
@@ -166,6 +185,11 @@ input updateUserInput {
   id: ID!
   data: updateUserSchema!
 }
+
+  type Query {
+    login(username: String, password: String): User
+  }
+  
 
 enum UserRoleEnumType {
   NEW

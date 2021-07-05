@@ -170,6 +170,9 @@ class Resolvers {
             ? { $nin: fieldReq.notIn }
             : null;
           break;
+        case "enum":
+          querySchema[field] = { $eq: fieldReq };
+          break;
         case "Int":
           querySchema[field] = _.has(fieldReq, "is")
             ? { $eq: fieldReq.is }

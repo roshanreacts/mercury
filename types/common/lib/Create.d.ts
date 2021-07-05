@@ -10,6 +10,9 @@ interface FieldsMap {
     ref?: string;
     enum?: Array<string | number>;
     enumType?: string;
+    unique?: boolean;
+    bcrypt?: boolean;
+    rounds?: boolean;
   };
 }
 
@@ -26,4 +29,5 @@ interface schemaType {
   _model: string;
   fields: FieldMap;
   resolvers?: ModelResolvers;
+  typeDefs?: string;
 }

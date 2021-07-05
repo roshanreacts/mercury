@@ -1,5 +1,6 @@
 import _ from "lodash";
 import { Schema, model } from "mongoose";
+import bcrypt from "bcrypt";
 import Resolvers from "./Resolvers";
 
 const fieldsTypeMap = [
@@ -7,6 +8,7 @@ const fieldsTypeMap = [
   { type: "number", value: "Int" },
   { type: "boolean", value: "Boolean" },
   { type: "float", value: "Float" },
+  { type: "password", value: "password" },
   { type: "enum", value: "enum" },
   { type: "date", value: "DateTime" },
   { type: "relationship", value: "relationship" },
@@ -15,6 +17,7 @@ const fieldsTypeMap = [
 const mongoFieldsTypeMap = [
   { type: "string", value: "String" },
   { type: "number", value: "Number" },
+  { type: "password", value: "password" },
   { type: "float", value: Schema.Types.Decimal128 },
   { type: "boolean", value: "Boolean" },
   { type: "date", value: Date },
@@ -34,6 +37,9 @@ class Generate {
     this.modelFields = schema.fields;
     this.genSchema = [];
     this.addGrpahqlSchema = [];
+    if (schema.typeDefs) {
+      this.addGrpahqlSchema.push(schema.typeDefs);
+    }
   }
 
   Resolvers(): Resolvers {
@@ -113,11 +119,12 @@ class Generate {
     _.mapKeys(
       this.modelFields,
       (fieldObj: { [key: string]: any }, fieldName: string) => {
-        this.genSchema.push(
-          `  ${fieldName}: ${this.getGraphqlField(fieldObj, fieldName)}${
-            fieldObj.isRequired ? "!" : ""
-          }`
-        );
+        const fieldType = this.getGraphqlField(fieldObj, fieldName);
+        if (fieldType) {
+          this.genSchema.push(
+            `  ${fieldName}: ${fieldType}${fieldObj.isRequired ? "!" : ""}`
+          );
+        }
       }
     );
 
@@ -128,13 +135,12 @@ class Generate {
     // ********* Declare Model Input type **********
     this.genSchema.push(`input create${this.modelName}Input {`);
     _.mapKeys(this.modelFields, (fieldObj, fieldName) => {
-      this.genSchema.push(
-        `  ${fieldName}: ${this.getGraphqlField(
-          fieldObj,
-          fieldName,
-          "create"
-        )}${fieldObj.isRequired ? "!" : ""}`
-      );
+      const fieldType = this.getGraphqlField(fieldObj, fieldName, "create");
+      if (fieldType) {
+        this.genSchema.push(
+          `  ${fieldName}: ${fieldType}${fieldObj.isRequired ? "!" : ""}`
+        );
+      }
     });
     // Close input type
     this.genSchema.push(`}`);
@@ -142,9 +148,10 @@ class Generate {
     // ********* Declare Model Update Input type **********
     this.genSchema.push(`input update${this.modelName}Schema {`);
     _.mapKeys(this.modelFields, (fieldObj, fieldName) => {
-      this.genSchema.push(
-        `  ${fieldName}: ${this.getGraphqlField(fieldObj, fieldName, "update")}`
-      );
+      const fieldType = this.getGraphqlField(fieldObj, fieldName, "update");
+      if (fieldType) {
+        this.genSchema.push(`  ${fieldName}: ${fieldType}`);
+      }
     });
     // Close input type
     this.genSchema.push(`}`);
@@ -201,6 +208,12 @@ class Generate {
       case "date":
         return this.getFieldType(field.type);
         break;
+      case "password":
+        if (schemaType !== "query") {
+          return `String`;
+        }
+        return;
+        break;
       case "relationship":
         if (schemaType === "create") {
           return `create${field.ref}Input`;
@@ -246,8 +259,16 @@ class Generate {
         return `  ${Field}: whereInt`;
         break;
 
+      case "Float":
+        return `  ${Field}: whereInt`;
+        break;
+
       case "Boolean":
         return `  ${Field}: Boolean`;
+        break;
+
+      case "enum":
+        return `  ${Field}: ${this.modelName}${Field.toProperCase()}EnumType`;
         break;
 
       default:
@@ -285,10 +306,14 @@ class Generate {
           this.getFieldType(fieldObj.type, "mongo") === "enum" &&
           fieldObj.enumType
             ? this.getFieldType(fieldObj.enumType, "mongo")
+            : this.getFieldType(fieldObj.type, "mongo") === "password"
+            ? this.getFieldType("string", "mongo")
             : this.getFieldType(fieldObj.type, "mongo"),
       };
+
       if (_.has(fieldObj, "isRequired"))
         fieldSchema.required = fieldObj.isRequired;
+      if (_.has(fieldObj, "unique")) fieldSchema.unique = fieldObj.unique;
       if (_.has(fieldObj, "default")) fieldSchema.default = fieldObj.default;
       if (_.has(fieldObj, "ref")) fieldSchema.ref = fieldObj.ref;
       if (_.has(fieldObj, "enum")) fieldSchema.enum = fieldObj.enum;
@@ -299,7 +324,9 @@ class Generate {
       timestamps: { createdAt: "createdOn", updatedAt: "updatedOn" },
       toObject: { virtuals: true },
     });
-    const newModel = model(this.modelName, mongoSchemaObj);
+
+    newSchema.plugin(require("mongoose-bcrypt"));
+    const newModel = model(this.modelName, newSchema);
     return {
       newSchema,
       newModel,
