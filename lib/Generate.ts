@@ -119,7 +119,9 @@ class Generate {
     _.mapKeys(
       this.modelFields,
       (fieldObj: { [key: string]: any }, fieldName: string) => {
-        const fieldType = this.getGraphqlField(fieldObj, fieldName);
+        const fieldType = fieldObj.graphqlType
+          ? fieldObj.graphqlType
+          : this.getGraphqlField(fieldObj, fieldName);
         if (fieldType) {
           this.genSchema.push(
             `  ${fieldName}: ${fieldType}${fieldObj.isRequired ? "!" : ""}`
@@ -135,7 +137,9 @@ class Generate {
     // ********* Declare Model Input type **********
     this.genSchema.push(`input create${this.modelName}Input {`);
     _.mapKeys(this.modelFields, (fieldObj, fieldName) => {
-      const fieldType = this.getGraphqlField(fieldObj, fieldName, "create");
+      const fieldType = fieldObj.graphqlType
+        ? fieldObj.graphqlType
+        : this.getGraphqlField(fieldObj, fieldName, "create");
       if (fieldType) {
         this.genSchema.push(
           `  ${fieldName}: ${fieldType}${fieldObj.isRequired ? "!" : ""}`
@@ -148,7 +152,9 @@ class Generate {
     // ********* Declare Model Update Input type **********
     this.genSchema.push(`input update${this.modelName}Schema {`);
     _.mapKeys(this.modelFields, (fieldObj, fieldName) => {
-      const fieldType = this.getGraphqlField(fieldObj, fieldName, "update");
+      const fieldType = fieldObj.graphqlType
+        ? fieldObj.graphqlType
+        : this.getGraphqlField(fieldObj, fieldName, "update");
       if (fieldType) {
         this.genSchema.push(`  ${fieldName}: ${fieldType}`);
       }
@@ -216,10 +222,10 @@ class Generate {
         break;
       case "relationship":
         if (schemaType === "create") {
-          return `create${field.ref}Input`;
+          return field.many ? `[String]` : `String`;
         }
         if (schemaType === "update") {
-          return `update${field.ref}Input`;
+          return field.many ? `[String]` : `String`;
         }
         return field.many ? `[${field.ref}]` : field.ref;
         break;

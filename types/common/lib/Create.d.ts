@@ -13,6 +13,7 @@ interface FieldsMap {
     unique?: boolean;
     bcrypt?: boolean;
     rounds?: boolean;
+    graphqlType?: string;
   };
 }
 

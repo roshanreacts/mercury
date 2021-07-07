@@ -65,6 +65,7 @@ export const UserSchema = {
     isAdmin: {
       type: "boolean",
       default: false,
+      graphqlType: "Currency",
     },
     role: {
       type: "enum",
@@ -157,7 +158,7 @@ type User {
   firstName: String!
   lastName: String
   todosCount: Int
-  isAdmin: Boolean
+  isAdmin: Currency
   role: UserRoleEnumType
   todos: [Todo]
 }
@@ -167,18 +168,18 @@ input createUserInput {
   lastName: String
   todosCount: Int
   password: String!
-  isAdmin: Boolean
+  isAdmin: Currency
   role: UserRoleEnumType
-  todos: createTodoInput
+  todos: [String]
 }
 input updateUserSchema {
   firstName: String
   lastName: String
   todosCount: Int
   password: String
-  isAdmin: Boolean
+  isAdmin: Currency
   role: UserRoleEnumType
-  todos: updateTodoInput
+  todos: [String]
 }
 
 input updateUserInput {
