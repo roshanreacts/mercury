@@ -265,6 +265,10 @@ class Generate {
         return `  ${Field}: whereInt`;
         break;
 
+      case "DateTime":
+        return `  ${Field}: whereDate`;
+        break;
+
       case "Float":
         return `  ${Field}: whereInt`;
         break;

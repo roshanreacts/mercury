@@ -34,7 +34,6 @@ describe("shoudl validate generate", () => {
 
   it("should generate gql schema", () => {
     const { schema } = generate.grpahqlSchema();
-    console.log(schema);
     expect(schema).toBe(UserGql);
   });
 

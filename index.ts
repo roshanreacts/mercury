@@ -74,6 +74,17 @@ class Mercury {
     gte: Int
     in: [Int]
     notIn: [Int]
+  }
+  
+  input whereDateTime {
+    is: DateTime
+    isNot: DateTime
+    lt: DateTime
+    lte: DateTime
+    gt: DateTime
+    gte: DateTime
+    in: [DateTime]
+    notIn: [DateTime]
   }`,
   ];
   private _resolvers: any = ScalarResolver;
