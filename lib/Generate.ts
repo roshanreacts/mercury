@@ -8,16 +8,15 @@ const fieldsTypeMap = [
   { type: "number", value: "Int" },
   { type: "boolean", value: "Boolean" },
   { type: "float", value: "Float" },
-  { type: "password", value: "password" },
   { type: "enum", value: "enum" },
   { type: "date", value: "DateTime" },
   { type: "relationship", value: "relationship" },
+  { type: "virtual", value: "virtual" },
 ];
 
 const mongoFieldsTypeMap = [
   { type: "string", value: "String" },
   { type: "number", value: "Number" },
-  { type: "password", value: "password" },
   { type: "float", value: Schema.Types.Decimal128 },
   { type: "boolean", value: "Boolean" },
   { type: "date", value: Date },
@@ -69,9 +68,18 @@ class Generate {
     this.genSchema.push(`input where${this.modelName}Input {`);
     this.genSchema.push(this.generateWhereInput("id", "ID"));
     _.mapKeys(this.modelFields, (fieldObj, fieldName) => {
-      const fieldType = this.getFieldType(fieldObj.type);
-      if (fieldType && fieldType !== "scalar" && typeof fieldType == "string") {
-        this.genSchema.push(this.generateWhereInput(fieldName, fieldType));
+      const isRead = fieldObj.ignoreGraphql
+        ? fieldObj.ignoreGraphql.read
+        : false;
+      if (!isRead) {
+        const fieldType = this.getFieldType(fieldObj.type);
+        if (
+          fieldType &&
+          fieldType !== "scalar" &&
+          typeof fieldType == "string"
+        ) {
+          this.genSchema.push(this.generateWhereInput(fieldName, fieldType));
+        }
       }
     });
     this.genSchema.push(`  AND: [where${this.modelName}Input]`);
@@ -119,13 +127,18 @@ class Generate {
     _.mapKeys(
       this.modelFields,
       (fieldObj: { [key: string]: any }, fieldName: string) => {
-        const fieldType = fieldObj.graphqlType
-          ? fieldObj.graphqlType
-          : this.getGraphqlField(fieldObj, fieldName);
-        if (fieldType) {
-          this.genSchema.push(
-            `  ${fieldName}: ${fieldType}${fieldObj.isRequired ? "!" : ""}`
-          );
+        const isRead = fieldObj.ignoreGraphql
+          ? fieldObj.ignoreGraphql.read
+          : false;
+        if (!isRead) {
+          const fieldType = fieldObj.graphqlType
+            ? fieldObj.graphqlType
+            : this.getGraphqlField(fieldObj, fieldName);
+          if (fieldType) {
+            this.genSchema.push(
+              `  ${fieldName}: ${fieldType}${fieldObj.isRequired ? "!" : ""}`
+            );
+          }
         }
       }
     );
@@ -221,6 +234,7 @@ class Generate {
         return;
         break;
       case "relationship":
+      case "virtual":
         if (schemaType === "create") {
           return field.many ? `[String]` : `String`;
         }
@@ -266,7 +280,7 @@ class Generate {
         break;
 
       case "DateTime":
-        return `  ${Field}: whereDate`;
+        return `  ${Field}: whereDateTime`;
         break;
 
       case "Float":
@@ -310,29 +324,50 @@ class Generate {
   // Mongoose model generator
   mongoModel() {
     const mongoSchemaObj: any = {};
+    const virtualFields: Array<{
+      fieldName: string;
+      fieldObj: { [key: string]: any };
+    }> = [];
     _.mapKeys(this.modelFields, (fieldObj, fieldName) => {
-      let fieldSchema: any = {
-        type:
-          this.getFieldType(fieldObj.type, "mongo") === "enum" &&
-          fieldObj.enumType
-            ? this.getFieldType(fieldObj.enumType, "mongo")
-            : this.getFieldType(fieldObj.type, "mongo") === "password"
-            ? this.getFieldType("string", "mongo")
-            : this.getFieldType(fieldObj.type, "mongo"),
-      };
+      if (this.getFieldType(fieldObj.type, "mongo")) {
+        let fieldSchema: any = {
+          type:
+            this.getFieldType(fieldObj.type, "mongo") === "enum" &&
+            fieldObj.enumType
+              ? this.getFieldType(fieldObj.enumType, "mongo")
+              : this.getFieldType(fieldObj.type, "mongo"),
+        };
 
-      if (_.has(fieldObj, "isRequired"))
-        fieldSchema.required = fieldObj.isRequired;
-      if (_.has(fieldObj, "unique")) fieldSchema.unique = fieldObj.unique;
-      if (_.has(fieldObj, "default")) fieldSchema.default = fieldObj.default;
-      if (_.has(fieldObj, "ref")) fieldSchema.ref = fieldObj.ref;
-      if (_.has(fieldObj, "enum")) fieldSchema.enum = fieldObj.enum;
-      mongoSchemaObj[fieldName] =
-        _.has(fieldObj, "many") && fieldObj.many ? [fieldSchema] : fieldSchema;
+        if (_.has(fieldObj, "isRequired"))
+          fieldSchema.required = fieldObj.isRequired;
+        if (_.has(fieldObj, "unique")) fieldSchema.unique = fieldObj.unique;
+        if (_.has(fieldObj, "default")) fieldSchema.default = fieldObj.default;
+        if (_.has(fieldObj, "ref")) fieldSchema.ref = fieldObj.ref;
+        if (_.has(fieldObj, "enum")) fieldSchema.enum = fieldObj.enum;
+        mongoSchemaObj[fieldName] =
+          _.has(fieldObj, "many") && fieldObj.many
+            ? [fieldSchema]
+            : fieldSchema;
+      }
+      if (fieldObj.type === "virtual") {
+        virtualFields.push({ fieldName, fieldObj });
+      }
     });
+
     const newSchema = new Schema(mongoSchemaObj, {
       timestamps: { createdAt: "createdOn", updatedAt: "updatedOn" },
       toObject: { virtuals: true },
+      toJSON: { virtuals: true },
+    });
+
+    // Add virtuals to schema
+    _.map(virtualFields, (item) => {
+      newSchema.virtual(item.fieldName, {
+        ref: item.fieldObj.ref, // the model to use
+        localField: item.fieldObj.localField, // find children where 'localField'
+        foreignField: item.fieldObj.foreignField, // is equal to foreignField
+        justOne: item.fieldObj.justOne,
+      });
     });
 
     newSchema.plugin(require("mongoose-bcrypt"));

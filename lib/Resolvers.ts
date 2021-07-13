@@ -18,7 +18,6 @@ class Resolvers {
     let populate: PopulateType = [];
     _.map(populateFields, (item) => {
       if (_.has(parentFields, item)) {
-        const refModel = this.modelFields[item].ref;
         const select = _.keys(parentFields[item]);
         populate.push({
           path: item,
@@ -27,6 +26,15 @@ class Resolvers {
       }
     });
     return populate;
+  }
+
+  hooks(name: string) {
+    switch (name) {
+      case "afterCreate":
+        break;
+      default:
+        break;
+    }
   }
 
   mapMongoResolver(name: string, Model: any) {

@@ -59,8 +59,11 @@ export const UserSchema = {
       default: 0,
     },
     password: {
-      type: "password",
+      type: "string",
       isRequired: true,
+      ignoreGraphql: {
+        read: true,
+      },
     },
     isAdmin: {
       type: "boolean",
@@ -74,8 +77,10 @@ export const UserSchema = {
       default: "NEW",
     },
     todos: {
-      type: "relationship",
+      type: "virtual",
       ref: "Todo",
+      localField: "id",
+      foreignField: "owner",
       many: true,
     },
   },
@@ -136,7 +141,6 @@ input whereUserInput {
   firstName: whereString
   lastName: whereString
   todosCount: whereInt
-
   isAdmin: Boolean
   role: UserRoleEnumType
 

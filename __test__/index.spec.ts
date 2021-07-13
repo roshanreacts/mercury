@@ -11,8 +11,7 @@ describe("Init mercury", () => {
 
     expect(mercury.schema).toBeDefined();
     expect(mercury.resolvers).toBeDefined();
-    expect(mercury.dataModels.Schemas).toBeDefined();
-    expect(mercury.dataModels.Models).toBeDefined();
+    expect(mercury.db).toBeDefined();
   });
   // it("should bcrypt password", async () => {
   //   const UserModel = mercury.dataModels.Models.UserModel;

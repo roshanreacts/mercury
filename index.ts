@@ -88,10 +88,7 @@ class Mercury {
   }`,
   ];
   private _resolvers: any = ScalarResolver;
-  private _dbModels: { Schemas: any; Models: any } = {
-    Schemas: {},
-    Models: {},
-  };
+  private _dbModels: { [key: string]: any } = {};
 
   adapter: DbAdapter;
   path: string;
@@ -109,7 +106,7 @@ class Mercury {
     return this._resolvers;
   }
 
-  get dataModels() {
+  get db() {
     return this._dbModels;
   }
   connect(path: string) {
@@ -136,8 +133,7 @@ class Mercury {
     const createModel = create.createList({ _model: name, ...schema });
     this._schema.push(createModel.schema);
     this._resolvers = mergeResolvers([this._resolvers, createModel.resolver]);
-    this._dbModels.Schemas[`${name}Schema`] = createModel.models.newSchema;
-    this._dbModels.Models[`${name}Model`] = createModel.models.newModel;
+    this._dbModels[name] = createModel.models.newModel;
   }
 }
 

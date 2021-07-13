@@ -3,7 +3,7 @@ interface FieldsMap {
     type: string;
     isRequired?: boolean;
     default?: any;
-    skipGraphql?: boolean;
+    ignoreGraphql?: ignoreGraphqlType;
     renameGraphql?: string;
     updatable?: boolean;
     many?: boolean;
@@ -14,7 +14,16 @@ interface FieldsMap {
     bcrypt?: boolean;
     rounds?: boolean;
     graphqlType?: string;
+    localField?: string;
+    foreignField?: string;
   };
+}
+
+interface ignoreGraphqlType {
+  create?: boolean;
+  read?: boolean;
+  update?: boolean;
+  delete?: boolean;
 }
 
 interface ResolversMap {
