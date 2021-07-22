@@ -1,6 +1,5 @@
 import _ from "lodash";
 import { Schema, model } from "mongoose";
-import bcrypt from "bcrypt";
 import Resolvers from "./Resolvers";
 
 const fieldsTypeMap = [
@@ -370,7 +369,9 @@ class Generate {
       });
     });
 
+    // Add option to include custom plugins
     newSchema.plugin(require("mongoose-bcrypt"));
+    newSchema.plugin(require("mongoose-paginate-v2"));
     const newModel = model(this.modelName, newSchema);
     return {
       newSchema,

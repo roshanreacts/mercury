@@ -49,10 +49,12 @@ class Resolvers {
           resolveInfo: any
         ) => {
           const populate = this.resolvePopulate(resolveInfo);
-          const findAll = await Model.find(
-            this.whereInputCompose(args.where)
-          ).populate(populate);
-          return findAll;
+          const findAll = await Model.paginate(
+            this.whereInputCompose(args.where),
+            { populate: populate }
+          );
+          console.log(findAll);
+          return findAll.docs;
         };
         break;
       case `get${this.modelName}`:

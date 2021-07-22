@@ -44,7 +44,8 @@
     "graphql-scalars": "^1.10.0",
     "lodash": "^4.17.20",
     "mongoose": "^5.12.3",
-    "mongoose-bcrypt": "^1.9.0"
+    "mongoose-bcrypt": "^1.9.0",
+    "mongoose-paginate-v2": "^1.4.1"
   },
   "jest": {
     "testEnvironment": "node"
