@@ -24,12 +24,14 @@ const mongoFieldsTypeMap = [
 ];
 
 class Generate {
+  schema: schemaType;
   adapter: DbAdapter;
   modelName: string;
   modelFields: FieldsMap;
   genSchema: Array<string>;
   addGrpahqlSchema: string[];
   constructor(schema: schemaType, adapter: DbAdapter) {
+    this.schema = schema;
     this.adapter = adapter;
     this.modelName = schema._model;
     this.modelFields = schema.fields;

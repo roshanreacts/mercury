@@ -20,6 +20,8 @@ describe("shoudl validate generate", () => {
       {
         _model: "User",
         ...UserSchema,
+        access: true,
+        public: false,
       },
       "mongoose"
     );

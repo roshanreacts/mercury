@@ -15,6 +15,8 @@ describe("Resolver Test", () => {
       {
         _model: "User",
         ...UserSchema,
+        access: true,
+        public: false,
       },
       "mongoose"
     );

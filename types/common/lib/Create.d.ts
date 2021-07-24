@@ -3,7 +3,7 @@ interface FieldsMap {
     type: string;
     isRequired?: boolean;
     default?: any;
-    ignoreGraphql?: ignoreGraphqlType;
+    ignoreGraphql?: verboseAccessType;
     renameGraphql?: string;
     updatable?: boolean;
     many?: boolean;
@@ -19,11 +19,11 @@ interface FieldsMap {
   };
 }
 
-interface ignoreGraphqlType {
-  create?: boolean;
-  read?: boolean;
-  update?: boolean;
-  delete?: boolean;
+interface verboseAccessType {
+  create: boolean | Function;
+  read: boolean | Function;
+  update: boolean | Function;
+  delete: boolean | Function;
 }
 
 interface ResolversMap {
@@ -35,9 +35,15 @@ interface ModelResolvers {
   Mutation?: ResolversMap;
 }
 
-interface schemaType {
-  _model: string;
+interface listSchema {
+  access?: boolean | Function | verboseAccessType;
   fields: FieldMap;
   resolvers?: ModelResolvers;
   typeDefs?: string;
+  public?: boolean | Function | verboseAccessType;
 }
+
+interface _model {
+  _model: string;
+}
+type schemaType = _model & listSchema;

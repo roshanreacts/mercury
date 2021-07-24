@@ -119,15 +119,18 @@ class Mercury {
       useUnifiedTopology: true,
     });
   }
-  createList(
-    name: string,
-    schema: { fields: FieldsMap; resolvers?: ModelResolvers; typeDefs?: string }
-  ) {
+  createList(name: string, schema: listSchema) {
     const regexPascal = /^[A-Z][A-Za-z]*$/; //Pascalcase regex
     if (!regexPascal.test(name) || name.slice(-1) === "s") {
       throw new Error(
         "Invalid name, should be PascalCase and should not have 's' at the end"
       );
+    }
+    if (!_.has(schema, "access")) {
+      schema.access = true;
+    }
+    if (!_.has(schema, "public")) {
+      schema.public = false;
     }
     const create = new Create(this);
     const createModel = create.createList({ _model: name, ...schema });

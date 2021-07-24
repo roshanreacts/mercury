@@ -2,10 +2,12 @@ import _ from "lodash";
 import graphqlFields from "graphql-fields";
 
 class Resolvers {
+  schema: schemaType;
   modelName: string;
   modelFields: FieldsMap;
   generate: Generate;
   constructor(base: Generate) {
+    this.schema = base.schema;
     this.generate = base;
     this.modelName = base.modelName;
     this.modelFields = base.modelFields;
@@ -48,12 +50,20 @@ class Resolvers {
           ctx: any,
           resolveInfo: any
         ) => {
+          this.checkPublic("read", ctx);
           const populate = this.resolvePopulate(resolveInfo);
           const findAll = await Model.paginate(
             this.whereInputCompose(args.where),
             { populate: populate }
           );
-          console.log(findAll);
+          this.validateAccess("read", {
+            root,
+            args,
+            ctx,
+            resolveInfo,
+            populate,
+            docs: findAll,
+          });
           return findAll.docs;
         };
         break;
@@ -64,16 +74,27 @@ class Resolvers {
           ctx: any,
           resolveInfo: any
         ) => {
+          this.checkPublic("read", ctx);
           const populate = this.resolvePopulate(resolveInfo);
           const findOne = await Model.findOne(
             this.whereInputCompose(args.where)
           ).populate(populate);
+          this.validateAccess("read", {
+            root,
+            args,
+            ctx,
+            resolveInfo,
+            populate,
+            docs: findOne,
+          });
           return findOne;
         };
         break;
       // Mutations
       case `create${this.modelName}`:
         return async (root: any, args: { data: any }, ctx: any) => {
+          this.checkPublic("create", ctx);
+          this.validateAccess("create", { root, args, ctx });
           const newModel = new Model(args.data);
           await newModel.save();
           return newModel;
@@ -82,6 +103,8 @@ class Resolvers {
 
       case `create${this.modelName}s`:
         return async (root: any, args: { data: any }, ctx: any) => {
+          this.checkPublic("create", ctx);
+          this.validateAccess("create", { root, args, ctx });
           const allRecords = await Model.insertMany(args.data);
           return allRecords;
         };
@@ -89,6 +112,8 @@ class Resolvers {
 
       case `update${this.modelName}`:
         return async (root: any, args: { id: string; data: any }, ctx: any) => {
+          this.checkPublic("update", ctx);
+          this.validateAccess("update", { root, args, ctx });
           return await Model.findByIdAndUpdate(args.id, args.data, {
             new: true,
           });
@@ -97,6 +122,8 @@ class Resolvers {
 
       case `update${this.modelName}s`:
         return async (root: any, args: { data: any }, ctx: any) => {
+          this.checkPublic("update", ctx);
+          this.validateAccess("update", { root, args, ctx });
           let updatedRecords: any[] = [];
           await Promise.all(
             _.map(args.data, async (record: any) => {
@@ -114,6 +141,8 @@ class Resolvers {
 
       case `delete${this.modelName}`:
         return async (root: any, args: { id: string; data: any }, ctx: any) => {
+          this.checkPublic("delete", ctx);
+          this.validateAccess("delete", { root, args, ctx });
           await Model.findByIdAndDelete(args.id);
           return true;
         };
@@ -121,9 +150,11 @@ class Resolvers {
 
       case `delete${this.modelName}s`:
         return async (root: any, args: { ids: any }, ctx: any) => {
+          this.checkPublic("delete", ctx);
+          this.validateAccess("delete", { root, args, ctx });
           await Promise.all(
             _.map(args.ids, async (id: any) => {
-              const deleteRecord = await Model.findByIdAndDelete(id);
+              await Model.findByIdAndDelete(id);
             })
           );
           return true;
@@ -133,6 +164,86 @@ class Resolvers {
       default:
         return (root: any, args: { data: any }, ctx: any) => {};
         break;
+    }
+  }
+
+  checkPublic(accessType: "read" | "create" | "update" | "delete", ctx: any) {
+    // Validate public
+    if (
+      typeof this.schema.public === "boolean" &&
+      !this.schema.public &&
+      ctx.user == null
+    ) {
+      throw new Error("Unauthorised access");
+    }
+    // If public is declared in function
+    if (typeof this.schema.public === "function") {
+      const publicFunc = this.schema.public;
+      const validate =
+        typeof publicFunc === "function" ? publicFunc(this.schema) : false;
+      if (!validate && ctx.user == null) {
+        throw new Error("Unauthorised access");
+      }
+    }
+    // If verbose type are declared
+    if (
+      typeof this.schema.public === "object" &&
+      typeof this.schema.public[accessType] === "boolean" &&
+      !this.schema.public[accessType] &&
+      ctx.user == null
+    ) {
+      throw new Error("Unauthorised access");
+    }
+    // If verbose type are declared in function
+    if (
+      typeof this.schema.public === "object" &&
+      typeof this.schema.public[accessType] === "function"
+    ) {
+      const publicFunc = this.schema.public[accessType];
+      const validate =
+        typeof publicFunc === "function" ? publicFunc(this.schema) : false;
+      if (!validate && ctx.user == null) {
+        throw new Error("Unauthorised access");
+      }
+    }
+  }
+
+  validateAccess(
+    accessType: "read" | "create" | "update" | "delete",
+    args: any
+  ) {
+    // Validate access
+    if (typeof this.schema.access === "boolean" && !this.schema.access) {
+      throw new Error("Unauthorised access");
+    }
+    // If access is declared in function
+    if (typeof this.schema.access === "function") {
+      const accessFunc = this.schema.access;
+      const validate =
+        typeof accessFunc === "function" ? this.schema.access() : true;
+      if (!validate) {
+        throw new Error("Unauthorised access");
+      }
+    }
+    // If verbose type are declared
+    if (
+      typeof this.schema.access === "object" &&
+      typeof this.schema.access[accessType] === "boolean" &&
+      !this.schema.access[accessType]
+    ) {
+      throw new Error("Unauthorised access");
+    }
+    // If verbose type are declared in function
+    if (
+      typeof this.schema.access === "object" &&
+      typeof this.schema.access[accessType] === "function"
+    ) {
+      const accessFunc = this.schema.access[accessType];
+      const validate =
+        typeof accessFunc === "function" ? accessFunc(args) : true;
+      if (!validate) {
+        throw new Error("Unauthorised access");
+      }
     }
   }
 
