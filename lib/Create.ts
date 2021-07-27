@@ -8,7 +8,7 @@ class Create {
   }
 
   createList(reqSchema: schemaType) {
-    const generate = new Generate(reqSchema, this.mercury.adapter);
+    const generate = new Generate(reqSchema, this.mercury);
     const getSchema = generate.grpahqlSchema();
 
     // Generate model base on adapter;

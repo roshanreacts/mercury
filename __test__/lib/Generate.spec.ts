@@ -20,10 +20,18 @@ describe("shoudl validate generate", () => {
       {
         _model: "User",
         ...UserSchema,
-        access: true,
+        access: {
+          default: false,
+          acl: [{ ADMIN: () => ({ read: () => false }) }],
+        },
         public: false,
       },
-      "mongoose"
+      {
+        adminRole: "ADMIN",
+        roles: ["ADMIN", "USER", "ANONYMOUS"],
+        adapter: "mongoose",
+        path: "./",
+      }
     );
   });
   it("should get type for gql", () => {

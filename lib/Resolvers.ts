@@ -2,6 +2,8 @@ import _ from "lodash";
 import graphqlFields from "graphql-fields";
 
 class Resolvers {
+  _adminRole: string;
+  _roles: Array<string>;
   schema: schemaType;
   modelName: string;
   modelFields: FieldsMap;
@@ -9,6 +11,8 @@ class Resolvers {
   constructor(base: Generate) {
     this.schema = base.schema;
     this.generate = base;
+    this._roles = base._mercury.roles;
+    this._adminRole = base._mercury.adminRole;
     this.modelName = base.modelName;
     this.modelFields = base.modelFields;
   }
@@ -211,40 +215,130 @@ class Resolvers {
   validateAccess(
     accessType: "read" | "create" | "update" | "delete",
     args: any
-  ) {
-    // Validate access
-    if (typeof this.schema.access === "boolean" && !this.schema.access) {
+  ): boolean {
+    const { ctx } = args;
+    const role = ctx.user.role;
+    const getAclMatrix = this.mergeAcl(args);
+    const accessItem = _.find(getAclMatrix.acl, role);
+    const checkAccess = accessItem ? accessItem[role][accessType] : false;
+    if (!checkAccess) {
       throw new Error("Unauthorised access");
     }
-    // If access is declared in function
-    if (typeof this.schema.access === "function") {
-      const accessFunc = this.schema.access;
-      const validate =
-        typeof accessFunc === "function" ? this.schema.access() : true;
-      if (!validate) {
-        throw new Error("Unauthorised access");
+    return true;
+  }
+
+  mergeAcl(args: any) {
+    const defaultVal =
+      this.schema.access && this.schema.access.default != null
+        ? this.schema.access.default
+        : true;
+    const defaultAcl = this.generateDefaultAcl(defaultVal);
+    const updatedAcl = _.map(defaultAcl.acl, (item) => {
+      const getKeys = _.keys(item);
+      const roleName = getKeys[0];
+      let accessItem = _.find(this.schema.access?.acl, roleName);
+      if (accessItem != null) {
+        switch (typeof accessItem[roleName]) {
+          case "object":
+            return _.merge(item, accessItem);
+          case "boolean":
+            const accessItemBoolean = accessItem[roleName];
+            return {
+              [roleName]: {
+                read: accessItemBoolean,
+                create: accessItemBoolean,
+                delete: accessItemBoolean,
+                update: accessItemBoolean,
+              },
+            };
+          case "function":
+            const accessItemValue = accessItem[roleName];
+            const accessItemFunc =
+              typeof accessItemValue === "function"
+                ? accessItemValue(args)
+                : defaultVal;
+            if (typeof accessItemFunc === "boolean") {
+              return {
+                [roleName]: {
+                  read: accessItemFunc,
+                  create: accessItemFunc,
+                  delete: accessItemFunc,
+                  update: accessItemFunc,
+                },
+              };
+            } else if (typeof accessItemFunc === "object") {
+              return { [roleName]: _.merge(item[roleName], accessItemFunc) };
+            }
+
+          default:
+            return {
+              [roleName]: {
+                read: defaultVal,
+                create: defaultVal,
+                delete: defaultVal,
+                update: defaultVal,
+              },
+            };
+        }
+      } else {
+        return item;
       }
-    }
-    // If verbose type are declared
-    if (
-      typeof this.schema.access === "object" &&
-      typeof this.schema.access[accessType] === "boolean" &&
-      !this.schema.access[accessType]
-    ) {
-      throw new Error("Unauthorised access");
-    }
-    // If verbose type are declared in function
-    if (
-      typeof this.schema.access === "object" &&
-      typeof this.schema.access[accessType] === "function"
-    ) {
-      const accessFunc = this.schema.access[accessType];
-      const validate =
-        typeof accessFunc === "function" ? accessFunc(args) : true;
-      if (!validate) {
-        throw new Error("Unauthorised access");
-      }
-    }
+    });
+
+    // Verbose field level Function
+    const verboseUpdatedAcl = _.map(updatedAcl, (item) => {
+      const getKeys = _.keys(item);
+      const roleName: string = getKeys[0];
+      const accessItem = item[roleName];
+
+      accessItem.read =
+        typeof accessItem.read === "function"
+          ? accessItem.read(args)
+          : accessItem.read;
+      accessItem.create =
+        typeof accessItem.create === "function"
+          ? accessItem.create(args)
+          : accessItem.create;
+      accessItem.update =
+        typeof accessItem.update === "function"
+          ? accessItem.update(args)
+          : accessItem.update;
+      accessItem.delete =
+        typeof accessItem.delete === "function"
+          ? accessItem.delete(args)
+          : accessItem.delete;
+
+      return { [roleName]: accessItem };
+    });
+    return { default: defaultVal, acl: verboseUpdatedAcl };
+  }
+
+  generateDefaultAcl(defaultValue: boolean) {
+    const defaultAcl = {
+      default: defaultValue,
+      acl: this._roles.map((item: string) => {
+        if (item === this._adminRole) {
+          return {
+            [item]: {
+              read: true,
+              create: true,
+              update: true,
+              delete: true,
+            },
+          };
+        } else {
+          return {
+            [item]: {
+              read: defaultValue,
+              create: defaultValue,
+              update: defaultValue,
+              delete: defaultValue,
+            },
+          };
+        }
+      }),
+    };
+    return defaultAcl;
   }
 
   whereInputCompose(input: any) {

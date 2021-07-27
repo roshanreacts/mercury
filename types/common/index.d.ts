@@ -1,4 +1,6 @@
 interface Mercury {
+  roles: Array<string>;
+  adminRole: string;
   adapter: DbAdapter;
   path: string;
 }

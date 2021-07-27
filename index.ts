@@ -2,6 +2,8 @@ import Create from "./lib/Create";
 import _ from "lodash";
 import mongoose from "mongoose";
 import { mergeTypeDefs, mergeResolvers } from "@graphql-tools/merge";
+// @ts-ignore
+import nconf from "nconf";
 import ScalarResolver from "./lib/Scalars";
 
 String.prototype.toProperCase = function () {
@@ -89,13 +91,26 @@ class Mercury {
   ];
   private _resolvers: any = ScalarResolver;
   private _dbModels: { [key: string]: any } = {};
+  private _roles: Array<string> = [];
+  private _adminRole: string = "";
 
   adapter: DbAdapter;
   path: string;
 
   constructor() {
+    nconf.argv().env().file({ file: "mercury.config.json" });
     this.adapter = "mongoose";
-    this.path = "mongodb://localhost:27017/mercuryapp";
+    this.path = nconf.get("dbPath")
+      ? nconf.get("dbPath")
+      : "mongodb://localhost:27017/mercuryapp";
+    this._roles = nconf.get("roles")
+      ? nconf.get("roles")
+      : ["SUPERADMIN", "USER", "ANONYMOUS"];
+    this._adminRole = nconf.get("adminRole")
+      ? nconf.get("adminRole")
+      : "SUPERADMIN";
+
+    this.connect();
   }
 
   get schema(): any {
@@ -109,8 +124,23 @@ class Mercury {
   get db() {
     return this._dbModels;
   }
-  connect(path: string) {
-    this.path = path;
+
+  public get roles() {
+    return this._roles;
+  }
+
+  public get adminRole() {
+    return this._adminRole;
+  }
+
+  // public set adminRole(role: string) {
+  //   this._adminRole = role;
+  // }
+
+  // public set roles(rolesArray: Array<string>) {
+  //   this._roles = rolesArray;
+  // }
+  connect() {
     mongoose.Promise = global.Promise;
     mongoose.connect(this.path, {
       useNewUrlParser: true,
@@ -127,7 +157,12 @@ class Mercury {
       );
     }
     if (!_.has(schema, "access")) {
-      schema.access = true;
+      schema.access = {
+        default: true,
+        acl: this._roles.map((role: string) => ({
+          [role]: true,
+        })),
+      };
     }
     if (!_.has(schema, "public")) {
       schema.public = false;

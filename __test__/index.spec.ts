@@ -2,6 +2,8 @@ import mercury from "../index";
 import { TodoSchema, TodoGql, UserSchema, UserGql } from "./sampleModel.mock";
 describe("Init mercury", () => {
   // Init the mercury config
+  // mercury.roles = ["HELO", "STATUS"];
+  // mercury.adminRole = "HELO";
   it("should initialize mercury", () => {
     expect(mercury.resolvers).toBeDefined();
   });
@@ -12,6 +14,8 @@ describe("Init mercury", () => {
     expect(mercury.schema).toBeDefined();
     expect(mercury.resolvers).toBeDefined();
     expect(mercury.db).toBeDefined();
+    expect(mercury.roles).toStrictEqual(["ADMIN", "USER", "ANONYMOUS"]);
+    expect(mercury.adminRole).toBe("ADMIN");
   });
   // it("should bcrypt password", async () => {
   //   const UserModel = mercury.dataModels.Models.UserModel;

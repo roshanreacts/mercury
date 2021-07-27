@@ -1,64 +1,205 @@
-# Realmoose
+# Mercury
 
-A mongoose like ORM for Realm DB.
+A modern low-code framework to auto generate your mongoose models, graphql API on the fly. Heavily inspired from KeystoneJs.
 
 ## Installation
 
-Use the package manager yarn to install realmoose.
+Use the package manager npm to install mercury.
 
 ```bash
-npm install realmoose
+npm install @mercury-js/core
 ```
 
-Use the package manager yarn to install realmoose.
+Use the package manager yarn to install mercury.
 
 ```bash
-yarn add realmoose
+yarn add @mercury-js/core
 ```
 
 ## Usage
 
-Realmoose is a [mongoose](https://www.npmjs.com/package/mongoose) like ORM built for [RealmDB](https://realm.io/).
+Mercury is really fast... Just need 3 variables to be defined in mercury.config.json file.
 
-The basic usage of realmoose in es6 goes like
-
-```javascript
-import {Schema, Model} from "realmoose";
-
-const carSchema = new Schema({
-    name: "Car",
-    properties: {
-        make: { type: "string" },
-        model: { type: "string", indexed: true, unique: true },
-        miles?: { type: "int", default: 0 },
-    },
-});
-
-let carModel = new Model(carSchema, "vehicles.realm", 1);
+```json
+{
+  "roles": ["ADMIN", "USER", "ANONYMOUS"],
+  "adminRole": "ADMIN",
+  "dbUrl": "mongodb://localhost:27017/mercuryapp"
+}
 ```
 
 This is almost similar to the mongoose model.
 
 ```javascript
-const newCarSchema = { make: "BWM", model: "Good4" };
-const newCar = carModel.create(newCarSchema); // Will create a rec with newCarSchema obj.
+import jwt from "jsonwebtoken";
+import mercury from "@mercury-js/core";
+import { authenticateLocal } from "../Auth";
+import _ from "lodash";
+
+export const UserSchema = {
+  fields: {
+    firstName: {
+      type: "string",
+      isRequired: true,
+    },
+    lastName: {
+      type: "string",
+    },
+    email: {
+      type: "string",
+      unique: true,
+      isRequired: true,
+    },
+    password: {
+      type: "string",
+      isRequired: true,
+      bcrypt: true,
+      rounds: 10,
+      ignoreGraphql: {
+        read: true,
+      },
+    },
+    role: {
+      type: "enum",
+      enumType: "string",
+      enum: ["ADMIN", "USER", "ANONYMOUS"],
+      isRequired: true,
+    },
+  },
+  resolvers: {
+    Mutation: {
+      login: async (root, { username, password }, { req, res }) => {
+        req.body = {
+          ...req.body,
+          username: username,
+          password: password,
+        };
+
+        try {
+          // data contains the accessToken, refreshToken and profile from passport
+          const { data, info } = await authenticateLocal(req, res);
+          if (data) {
+            const token = await jwt.sign(
+              {
+                data: data,
+              },
+              "secret",
+              { expiresIn: "1h" }
+            );
+
+            return { User: data, token: token };
+          }
+          return Error("server error");
+        } catch (error) {
+          return error;
+        }
+      },
+    },
+  },
+  typeDefs: `
+  type AuthUser {
+    User: User
+    token: String
+  }
+  type Mutation {
+    login(username: String, password: String): AuthUser
+  }
+  `,
+  access: {
+    default: true,
+    acl: [
+      { ADMIN: { read: true, create: true, update: true, delete: true } },
+      { USER: false },
+    ],
+  },
+  public: {
+    read: false,
+    create: true,
+    update: false,
+    delete: false,
+  },
+};
+
+mercury.createList("User", UserSchema);
 ```
 
-We have some key features in realmoose.
+We have some key features in mercury.
 
-The most important of them is, you can use a **unique** key for the unique validation of the document (at first JSON node level).
-As you know RealmDB doesn't support unique field validation out of the box. So we added this feature to make life better.
+For the above model you we will get a CRUD graphql API's and a mongoose model.
 
-This package also has some more features like.
+Connect the mercury generated typedefs, resolvers and db models to apollo.
 
-- Model-level DB path declaration (No need to import and merge your schemas).
-- Has all the basic methods like find, findById, findOne, update, create... for the model.
-- No need for Realm.write for write transactions.
+```javascript
+import express from "express";
+import { ApolloServer, AuthenticationError } from "apollo-server-express";
+import { makeExecutableSchema } from "graphql-tools";
+import { applyMiddleware } from "graphql-middleware";
+import mongoose from "mongoose";
+import mercury from "@mercury-js/core";
+import _ from "lodash";
+import session from "express-session";
+import { v4 as uuid } from "uuid";
+import passport from "passport";
+import jwt from "jsonwebtoken";
+// Import all your models
+import "./User.js";
 
-## Roadmap
+const app = express();
+const PORT = 3030;
+const SESSION_SECRECT = "bad secret";
 
-- Virtual fields
-- Populate
+mongoose.Promise = global.Promise;
+
+// GraphQl Server
+const schema = applyMiddleware(
+  makeExecutableSchema({
+    typeDefs: mercury.schema,
+    resolvers: mercury.resolvers,
+  })
+);
+
+app.use(
+  session({
+    genid: (req) => uuid(),
+    secret: SESSION_SECRECT,
+    resave: false,
+    saveUninitialized: false,
+  })
+);
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+const server = new ApolloServer({
+  schema,
+  rootValue: mercury.db,
+  context: async ({ req, res }) => {
+    const token = req.headers.token;
+    let parseToken;
+    if (token) {
+      parseToken = await jwt.verify(token, "secret");
+    }
+    const user =
+      token && parseToken && parseToken.data ? parseToken.data : null;
+    return { req, user: user, res };
+  },
+});
+server.applyMiddleware({
+  app: app,
+  bodyParserConfig: {
+    limit: "1mb",
+  },
+});
+
+app.listen(PORT, () =>
+  console.log(`Running API server at route ${PORT}${server.graphqlPath}`)
+);
+
+export default app;
+```
+
+That's it now you have new graphql server with models, crud api for all your schemas ready.
+We are writing some detailed documentation for you, we will add up very soon.
 
 ## Contributing
 
