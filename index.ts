@@ -109,8 +109,9 @@ class Mercury {
     this._adminRole = nconf.get("adminRole")
       ? nconf.get("adminRole")
       : "SUPERADMIN";
-
-    this.connect();
+    if (nconf.get("dbPath")) {
+      this.connect(this.path);
+    }
   }
 
   get schema(): any {
@@ -140,7 +141,8 @@ class Mercury {
   // public set roles(rolesArray: Array<string>) {
   //   this._roles = rolesArray;
   // }
-  connect() {
+  connect(path: string) {
+    this.path = path;
     mongoose.Promise = global.Promise;
     mongoose.connect(this.path, {
       useNewUrlParser: true,

@@ -54,13 +54,12 @@ class Resolvers {
           ctx: any,
           resolveInfo: any
         ) => {
-          this.checkPublic("read", ctx);
           const populate = this.resolvePopulate(resolveInfo);
           const findAll = await Model.paginate(
             this.whereInputCompose(args.where),
             { populate: populate }
           );
-          this.validateAccess("read", {
+          await this.validateAccess("read", {
             root,
             args,
             ctx,
@@ -78,12 +77,11 @@ class Resolvers {
           ctx: any,
           resolveInfo: any
         ) => {
-          this.checkPublic("read", ctx);
           const populate = this.resolvePopulate(resolveInfo);
           const findOne = await Model.findOne(
             this.whereInputCompose(args.where)
           ).populate(populate);
-          this.validateAccess("read", {
+          await this.validateAccess("read", {
             root,
             args,
             ctx,
@@ -96,38 +94,60 @@ class Resolvers {
         break;
       // Mutations
       case `create${this.modelName}`:
-        return async (root: any, args: { data: any }, ctx: any) => {
-          this.checkPublic("create", ctx);
-          this.validateAccess("create", { root, args, ctx });
+        return async (
+          root: any,
+          args: { data: any },
+          ctx: any,
+          resolveInfo: any
+        ) => {
+          const populate = this.resolvePopulate(resolveInfo);
+          await this.validateAccess("create", { root, args, ctx });
           const newModel = new Model(args.data);
           await newModel.save();
-          return newModel;
+          return await newModel.populate(populate).execPopulate();
         };
         break;
 
       case `create${this.modelName}s`:
-        return async (root: any, args: { data: any }, ctx: any) => {
-          this.checkPublic("create", ctx);
-          this.validateAccess("create", { root, args, ctx });
+        return async (
+          root: any,
+          args: { data: any },
+          ctx: any,
+          resolveInfo: any
+        ) => {
+          const populate = this.resolvePopulate(resolveInfo);
+          await this.validateAccess("create", { root, args, ctx });
           const allRecords = await Model.insertMany(args.data);
-          return allRecords;
+          return await allRecords.populate(populate).execPopulate();
         };
         break;
 
       case `update${this.modelName}`:
-        return async (root: any, args: { id: string; data: any }, ctx: any) => {
-          this.checkPublic("update", ctx);
-          this.validateAccess("update", { root, args, ctx });
+        return async (
+          root: any,
+          args: { id: string; data: any },
+          ctx: any,
+          resolveInfo: any
+        ) => {
+          const populate = this.resolvePopulate(resolveInfo);
+          await this.validateAccess("update", { root, args, ctx });
           return await Model.findByIdAndUpdate(args.id, args.data, {
             new: true,
-          });
+          })
+            .populate(populate)
+            .execPopulate();
         };
         break;
 
       case `update${this.modelName}s`:
-        return async (root: any, args: { data: any }, ctx: any) => {
-          this.checkPublic("update", ctx);
-          this.validateAccess("update", { root, args, ctx });
+        return async (
+          root: any,
+          args: { data: any },
+          ctx: any,
+          resolveInfo: any
+        ) => {
+          const populate = this.resolvePopulate(resolveInfo);
+          await this.validateAccess("update", { root, args, ctx });
           let updatedRecords: any[] = [];
           await Promise.all(
             _.map(args.data, async (record: any) => {
@@ -135,7 +155,9 @@ class Resolvers {
                 record.id,
                 record.data,
                 { new: true }
-              );
+              )
+                .populate(populate)
+                .execPopulate();
               updatedRecords.push(updateRecord);
             })
           );
@@ -145,8 +167,7 @@ class Resolvers {
 
       case `delete${this.modelName}`:
         return async (root: any, args: { id: string; data: any }, ctx: any) => {
-          this.checkPublic("delete", ctx);
-          this.validateAccess("delete", { root, args, ctx });
+          await this.validateAccess("delete", { root, args, ctx });
           await Model.findByIdAndDelete(args.id);
           return true;
         };
@@ -154,8 +175,7 @@ class Resolvers {
 
       case `delete${this.modelName}s`:
         return async (root: any, args: { ids: any }, ctx: any) => {
-          this.checkPublic("delete", ctx);
-          this.validateAccess("delete", { root, args, ctx });
+          await this.validateAccess("delete", { root, args, ctx });
           await Promise.all(
             _.map(args.ids, async (id: any) => {
               await Model.findByIdAndDelete(id);
@@ -171,54 +191,13 @@ class Resolvers {
     }
   }
 
-  checkPublic(accessType: "read" | "create" | "update" | "delete", ctx: any) {
-    // Validate public
-    if (
-      typeof this.schema.public === "boolean" &&
-      !this.schema.public &&
-      ctx.user == null
-    ) {
-      throw new Error("Unauthorised access");
-    }
-    // If public is declared in function
-    if (typeof this.schema.public === "function") {
-      const publicFunc = this.schema.public;
-      const validate =
-        typeof publicFunc === "function" ? publicFunc(this.schema) : false;
-      if (!validate && ctx.user == null) {
-        throw new Error("Unauthorised access");
-      }
-    }
-    // If verbose type are declared
-    if (
-      typeof this.schema.public === "object" &&
-      typeof this.schema.public[accessType] === "boolean" &&
-      !this.schema.public[accessType] &&
-      ctx.user == null
-    ) {
-      throw new Error("Unauthorised access");
-    }
-    // If verbose type are declared in function
-    if (
-      typeof this.schema.public === "object" &&
-      typeof this.schema.public[accessType] === "function"
-    ) {
-      const publicFunc = this.schema.public[accessType];
-      const validate =
-        typeof publicFunc === "function" ? publicFunc(this.schema) : false;
-      if (!validate && ctx.user == null) {
-        throw new Error("Unauthorised access");
-      }
-    }
-  }
-
-  validateAccess(
+  async validateAccess(
     accessType: "read" | "create" | "update" | "delete",
     args: any
-  ): boolean {
+  ): Promise<boolean> {
     const { ctx } = args;
     const role = ctx.user.role;
-    const getAclMatrix = this.mergeAcl(args);
+    const getAclMatrix = await this.mergeAcl(args);
     const accessItem = _.find(getAclMatrix.acl, role);
     const checkAccess = accessItem ? accessItem[role][accessType] : false;
     if (!checkAccess) {
@@ -227,89 +206,93 @@ class Resolvers {
     return true;
   }
 
-  mergeAcl(args: any) {
+  async mergeAcl(args: any) {
     const defaultVal =
       this.schema.access && this.schema.access.default != null
         ? this.schema.access.default
         : true;
     const defaultAcl = this.generateDefaultAcl(defaultVal);
-    const updatedAcl = _.map(defaultAcl.acl, (item) => {
-      const getKeys = _.keys(item);
-      const roleName = getKeys[0];
-      let accessItem = _.find(this.schema.access?.acl, roleName);
-      if (accessItem != null) {
-        switch (typeof accessItem[roleName]) {
-          case "object":
-            return _.merge(item, accessItem);
-          case "boolean":
-            const accessItemBoolean = accessItem[roleName];
-            return {
-              [roleName]: {
-                read: accessItemBoolean,
-                create: accessItemBoolean,
-                delete: accessItemBoolean,
-                update: accessItemBoolean,
-              },
-            };
-          case "function":
-            const accessItemValue = accessItem[roleName];
-            const accessItemFunc =
-              typeof accessItemValue === "function"
-                ? accessItemValue(args)
-                : defaultVal;
-            if (typeof accessItemFunc === "boolean") {
+    const updatedAcl = await Promise.all(
+      _.map(defaultAcl.acl, async (item) => {
+        const getKeys = _.keys(item);
+        const roleName = getKeys[0];
+        let accessItem = _.find(this.schema.access?.acl, roleName);
+        if (accessItem != null) {
+          switch (typeof accessItem[roleName]) {
+            case "object":
+              return _.merge(item, accessItem);
+            case "boolean":
+              const accessItemBoolean = accessItem[roleName];
               return {
                 [roleName]: {
-                  read: accessItemFunc,
-                  create: accessItemFunc,
-                  delete: accessItemFunc,
-                  update: accessItemFunc,
+                  read: accessItemBoolean,
+                  create: accessItemBoolean,
+                  delete: accessItemBoolean,
+                  update: accessItemBoolean,
                 },
               };
-            } else if (typeof accessItemFunc === "object") {
-              return { [roleName]: _.merge(item[roleName], accessItemFunc) };
-            }
+            case "function":
+              const accessItemValue = accessItem[roleName];
+              const accessItemFunc =
+                typeof accessItemValue === "function"
+                  ? await accessItemValue(args)
+                  : defaultVal;
+              if (typeof accessItemFunc === "boolean") {
+                return {
+                  [roleName]: {
+                    read: accessItemFunc,
+                    create: accessItemFunc,
+                    delete: accessItemFunc,
+                    update: accessItemFunc,
+                  },
+                };
+              } else if (typeof accessItemFunc === "object") {
+                return { [roleName]: _.merge(item[roleName], accessItemFunc) };
+              }
 
-          default:
-            return {
-              [roleName]: {
-                read: defaultVal,
-                create: defaultVal,
-                delete: defaultVal,
-                update: defaultVal,
-              },
-            };
+            default:
+              return {
+                [roleName]: {
+                  read: defaultVal,
+                  create: defaultVal,
+                  delete: defaultVal,
+                  update: defaultVal,
+                },
+              };
+          }
+        } else {
+          return item;
         }
-      } else {
-        return item;
-      }
-    });
+      })
+    );
 
     // Verbose field level Function
-    const verboseUpdatedAcl = _.map(updatedAcl, (item) => {
-      const getKeys = _.keys(item);
-      const roleName: string = getKeys[0];
-      const accessItem = item[roleName];
+    const verboseUpdatedAcl = await Promise.all(
+      _.map(updatedAcl, async (item) => {
+        const getKeys = _.keys(item);
+        const roleName: string = getKeys[0];
+        const accessItem = item[roleName];
 
-      accessItem.read =
-        typeof accessItem.read === "function"
-          ? accessItem.read(args)
-          : accessItem.read;
-      accessItem.create =
-        typeof accessItem.create === "function"
-          ? accessItem.create(args)
-          : accessItem.create;
-      accessItem.update =
-        typeof accessItem.update === "function"
-          ? accessItem.update(args)
-          : accessItem.update;
-      accessItem.delete =
-        typeof accessItem.delete === "function"
-          ? accessItem.delete(args)
-          : accessItem.delete;
+        accessItem.read =
+          typeof accessItem.read === "function"
+            ? await accessItem.read(args)
+            : accessItem.read;
+        accessItem.create =
+          typeof accessItem.create === "function"
+            ? await accessItem.create(args)
+            : accessItem.create;
+        accessItem.update =
+          typeof accessItem.update === "function"
+            ? await accessItem.update(args)
+            : accessItem.update;
+        accessItem.delete =
+          typeof accessItem.delete === "function"
+            ? await accessItem.delete(args)
+            : accessItem.delete;
 
-      return { [roleName]: accessItem };
-    });
+        return { [roleName]: accessItem };
+      })
+    );
     return { default: defaultVal, acl: verboseUpdatedAcl };
   }
 
