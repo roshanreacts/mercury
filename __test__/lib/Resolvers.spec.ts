@@ -11,6 +11,7 @@ import {
 describe("Resolver Test", () => {
   let resolvers: any;
   let roles: Array<string> = ["ADMIN", "USER", "ANONYMOUS"];
+  const hookFunc = jest.fn();
 
   beforeAll(() => {
     const generate = new Generate(
@@ -21,7 +22,14 @@ describe("Resolver Test", () => {
           default: false,
           acl: [{ ADMIN: () => ({ read: () => true }) }],
         },
-        public: false,
+        hooks: {
+          beforeCreate: hookFunc,
+          afterCreate: hookFunc,
+          beforeUpdate: hookFunc,
+          afterUpdate: hookFunc,
+          beforeDelete: hookFunc,
+          afterDelete: hookFunc,
+        },
       },
       {
         adminRole: "ADMIN",
@@ -187,5 +195,14 @@ describe("Resolver Test", () => {
     };
     expect(access).toStrictEqual(defaultAcl);
     expect(accessFalsy).toStrictEqual(defaultAclFalsy);
+  });
+  it("should trigger hooks", async () => {
+    await resolvers.hooks("beforeCreate", {});
+    await resolvers.hooks("afterCreate", {});
+    await resolvers.hooks("beforeUpdate", {});
+    await resolvers.hooks("afterUpdate", {});
+    await resolvers.hooks("beforeDelete", {});
+    await resolvers.hooks("afterDelete", {});
+    expect(hookFunc).toBeCalledTimes(6);
   });
 });

@@ -57,9 +57,37 @@ class Resolvers {
     return populate;
   }
 
-  hooks(name: string) {
+  async hooks(name: string, args: any) {
     switch (name) {
+      case "beforeCreate":
+        this.schema?.hooks?.beforeCreate
+          ? await this.schema.hooks.beforeCreate(args)
+          : true;
+        break;
       case "afterCreate":
+        this.schema?.hooks?.afterCreate
+          ? await this.schema.hooks.afterCreate(args)
+          : true;
+        break;
+      case "beforeUpdate":
+        this.schema?.hooks?.beforeUpdate
+          ? await this.schema.hooks.beforeUpdate(args)
+          : true;
+        break;
+      case "afterUpdate":
+        this.schema?.hooks?.afterUpdate
+          ? await this.schema.hooks.afterUpdate(args)
+          : true;
+        break;
+      case "beforeDelete":
+        this.schema?.hooks?.beforeDelete
+          ? await this.schema.hooks.beforeDelete(args)
+          : true;
+        break;
+      case "afterDelete":
+        this.schema?.hooks?.afterDelete
+          ? await this.schema?.hooks?.afterDelete(args)
+          : true;
         break;
       default:
         break;
@@ -125,8 +153,23 @@ class Resolvers {
         ) => {
           const populate = this.resolvePopulate(resolveInfo);
           await this.validateAccess("create", { root, args, ctx });
+          this.hooks("beforeCreate", {
+            root,
+            args,
+            ctx,
+            resolveInfo,
+            populate,
+          });
           const newModel = new Model(args.data);
           await newModel.save();
+          this.hooks("afterCreate", {
+            root,
+            args,
+            ctx,
+            resolveInfo,
+            populate,
+            docs: newModel,
+          });
           return await newModel.populate(populate).execPopulate();
         };
         break;
@@ -140,8 +183,25 @@ class Resolvers {
         ) => {
           const populate = this.resolvePopulate(resolveInfo);
           await this.validateAccess("create", { root, args, ctx });
-          const allRecords = await Model.insertMany(args.data);
-          return await allRecords.populate(populate).execPopulate();
+          this.hooks("beforeCreate", {
+            root,
+            args,
+            ctx,
+            resolveInfo,
+            populate,
+          });
+          const allRecords = await Model.insertMany(args.data)
+            .populate(populate)
+            .execPopulate();
+          this.hooks("afterCreate", {
+            root,
+            args,
+            ctx,
+            resolveInfo,
+            populate,
+            docs: allRecords,
+          });
+          return await allRecords;
         };
         break;
 
@@ -154,11 +214,34 @@ class Resolvers {
         ) => {
           const populate = this.resolvePopulate(resolveInfo);
           await this.validateAccess("update", { root, args, ctx });
-          return await Model.findByIdAndUpdate(args.id, args.data, {
-            new: true,
-          })
+          const findModel = await Model.findById(args.id);
+          this.hooks("beforeUpdate", {
+            root,
+            args,
+            ctx,
+            resolveInfo,
+            populate,
+            prevRecord: findModel,
+          });
+          const updateModel = await Model.findByIdAndUpdate(
+            args.id,
+            args.data,
+            {
+              new: true,
+            }
+          )
             .populate(populate)
             .execPopulate();
+          this.hooks("afterUpdate", {
+            root,
+            args,
+            ctx,
+            resolveInfo,
+            populate,
+            prevRecord: findModel,
+            docs: updateModel,
+          });
+          return updateModel;
         };
         break;
 
@@ -174,6 +257,15 @@ class Resolvers {
           let updatedRecords: any[] = [];
           await Promise.all(
             _.map(args.data, async (record: any) => {
+              const findModel = await Model.findById(record.id);
+              this.hooks("beforeUpdate", {
+                root,
+                args,
+                ctx,
+                resolveInfo,
+                populate,
+                prevRecord: findModel,
+              });
               const updateRecord = await Model.findByIdAndUpdate(
                 record.id,
                 record.data,
@@ -181,6 +273,15 @@ class Resolvers {
               )
                 .populate(populate)
                 .execPopulate();
+              this.hooks("afterUpdate", {
+                root,
+                args,
+                ctx,
+                resolveInfo,
+                populate,
+                prevRecord: findModel,
+                docs: updateRecord,
+              });
               updatedRecords.push(updateRecord);
             })
           );
@@ -189,19 +290,61 @@ class Resolvers {
         break;
 
       case `delete${this.modelName}`:
-        return async (root: any, args: { id: string; data: any }, ctx: any) => {
-          await this.validateAccess("delete", { root, args, ctx });
-          await Model.findByIdAndDelete(args.id);
+        return async (
+          root: any,
+          args: { id: string; data: any },
+          ctx: any,
+          resolveInfo: any
+        ) => {
+          await this.validateAccess("delete", { root, args, ctx, resolveInfo });
+          const findModel = await Model.findById(args.id);
+          this.hooks("beforeDelete", {
+            root,
+            args,
+            ctx,
+            resolveInfo,
+            prevRecord: findModel,
+          });
+          const delRec = await Model.findByIdAndDelete(args.id);
+          this.hooks("afterDelete", {
+            root,
+            args,
+            ctx,
+            resolveInfo,
+            prevRecord: findModel,
+            docs: delRec,
+          });
           return true;
         };
         break;
 
       case `delete${this.modelName}s`:
-        return async (root: any, args: { ids: any }, ctx: any) => {
+        return async (
+          root: any,
+          args: { ids: any },
+          ctx: any,
+          resolveInfo: any
+        ) => {
           await this.validateAccess("delete", { root, args, ctx });
           await Promise.all(
             _.map(args.ids, async (id: any) => {
-              await Model.findByIdAndDelete(id);
+              const findModel = await Model.findById(id);
+              this.hooks("beforeDelete", {
+                root,
+                args,
+                ctx,
+                resolveInfo,
+                prevRecord: findModel,
+              });
+              const delRec = await Model.findByIdAndDelete(id);
+              this.hooks("afterDelete", {
+                root,
+                args,
+                ctx,
+                resolveInfo,
+                prevRecord: findModel,
+                docs: delRec,
+              });
             })
           );
           return true;

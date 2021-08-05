@@ -44,12 +44,21 @@ interface AccessType {
   }>;
 }
 
+interface HookType {
+  beforeCreate?: Function;
+  afterCreate?: Function;
+  beforeUpdate?: Function;
+  afterUpdate?: Function;
+  beforeDelete?: Function;
+  afterDelete?: Function;
+}
 interface listSchema {
   access?: AccessType;
   fields: FieldMap;
   resolvers?: ModelResolvers;
   typeDefs?: string;
   public?: boolean | Function | verboseAccessType;
+  hooks?: HookType;
 }
 
 interface _model {
