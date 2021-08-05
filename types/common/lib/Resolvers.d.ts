@@ -5,7 +5,12 @@ interface Resolvers {
   modelFields: FieldsMap;
 }
 
-type PopulateType = Array<{ path: string; select: string; options?: any }>;
+type PopulateType = Array<{
+  path: string;
+  select: string;
+  populate?: Array<{ path: string; select?: string }>;
+  options?: any;
+}>;
 
 interface FinalAclMatrix {
   default: boolean;

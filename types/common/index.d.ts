@@ -1,4 +1,5 @@
 interface Mercury {
+  schemaList: Array<schemaType>;
   roles: Array<string>;
   adminRole: string;
   adapter: DbAdapter;

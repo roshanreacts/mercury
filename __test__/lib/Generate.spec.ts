@@ -27,6 +27,7 @@ describe("shoudl validate generate", () => {
         public: false,
       },
       {
+        schemaList: [],
         adminRole: "ADMIN",
         roles: ["ADMIN", "USER", "ANONYMOUS"],
         adapter: "mongoose",

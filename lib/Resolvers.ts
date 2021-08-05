@@ -2,6 +2,7 @@ import _ from "lodash";
 import graphqlFields from "graphql-fields";
 
 class Resolvers {
+  _list: Array<schemaType>;
   _adminRole: string;
   _roles: Array<string>;
   schema: schemaType;
@@ -13,6 +14,7 @@ class Resolvers {
     this.generate = base;
     this._roles = base._mercury.roles;
     this._adminRole = base._mercury.adminRole;
+    this._list = base._mercury.schemaList;
     this.modelName = base.modelName;
     this.modelFields = base.modelFields;
   }
@@ -25,10 +27,31 @@ class Resolvers {
     _.map(populateFields, (item) => {
       if (_.has(parentFields, item)) {
         const select = _.keys(parentFields[item]);
-        populate.push({
+
+        let populateSchema: any = {
           path: item,
           select: select.join(" "),
-        });
+        };
+        let childPopulate: { path: string; select: string }[] = [];
+        const findModelName = pickRef[item].ref;
+        let childListModel = _.find(this._list, ["_model", findModelName]);
+        const pickRefChild = _.pickBy(childListModel?.fields, (list) =>
+          _.has(list, "ref")
+        );
+        if (!_.isEmpty(pickRefChild)) {
+          const populateChildFields = _.keys(pickRefChild);
+          _.map(populateChildFields, (childItem) => {
+            if (_.includes(select, childItem)) {
+              const childSelect = _.keys(parentFields[item][childItem]);
+              childPopulate.push({
+                path: childItem,
+                select: childSelect.join(" "),
+              });
+            }
+          });
+          if (childPopulate) populateSchema.populate = childPopulate;
+        }
+        populate.push(populateSchema);
       }
     });
     return populate;
@@ -325,6 +348,28 @@ class Resolvers {
   }
 
   whereInputCompose(input: any) {
+    let querySchema: any = {};
+    _.mapKeys(input, (fieldReq: any, field: string) => {
+      switch (field) {
+        case "AND":
+          querySchema = {
+            $and: _.map(fieldReq, (item) => this.whereInputCompose(item)),
+          };
+          break;
+        case "OR":
+          querySchema = {
+            $or: _.map(fieldReq, (item) => this.whereInputCompose(item)),
+          };
+          break;
+        default:
+          querySchema = this.whereInputMap(input);
+          break;
+      }
+    });
+    return querySchema;
+  }
+
+  whereInputMap(input: any) {
     let querySchema: any = {};
     _.mapKeys(input, (fieldReq: any, field: string) => {
       let key: string | undefined;

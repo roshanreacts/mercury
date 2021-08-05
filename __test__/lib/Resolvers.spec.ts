@@ -23,7 +23,13 @@ describe("Resolver Test", () => {
         },
         public: false,
       },
-      { adminRole: "ADMIN", roles, adapter: "mongoose", path: "./" }
+      {
+        adminRole: "ADMIN",
+        roles,
+        adapter: "mongoose",
+        path: "./",
+        schemaList: [],
+      }
     );
     resolvers = new Resolvers(generate);
   });
@@ -37,7 +43,7 @@ describe("Resolver Test", () => {
       },
       todosCount: { gt: 1 },
     };
-    const getWhereSchema = resolvers.whereInputCompose(input);
+    const getWhereSchema = resolvers.whereInputMap(input);
     expect(getWhereSchema).toStrictEqual({
       _id: { $ne: "687y787g637ge3e3y7823e" },
       firstName: {
@@ -49,7 +55,78 @@ describe("Resolver Test", () => {
       },
     });
   });
+  it("should generate where input to schema with and or", () => {
+    const inputWithAndOr = {
+      AND: [
+        {
+          OR: [
+            {
+              id: {
+                isNot: "687y787g637ge3e3y7823e",
+              },
+            },
+            {
+              firstName: {
+                startsWith: "Roshan",
+              },
+            },
+          ],
+        },
+        {
+          OR: [
+            {
+              id: {
+                isNot: "687y787g637ge3e3y7823e",
+              },
+            },
+            {
+              firstName: {
+                startsWith: "Roshan",
+              },
+            },
+          ],
+        },
+      ],
+    };
 
+    const input = {
+      id: {
+        isNot: "687y787g637ge3e3y7823e",
+      },
+      firstName: {
+        startsWith: "Roshan",
+      },
+      todosCount: { gt: 1 },
+    };
+    const getWhereSchemaWithAndOr = resolvers.whereInputCompose(inputWithAndOr);
+    const getWhereSchema = resolvers.whereInputCompose(input);
+    expect(getWhereSchemaWithAndOr).toStrictEqual({
+      $and: [
+        {
+          $or: [
+            { _id: { $ne: "687y787g637ge3e3y7823e" } },
+            { firstName: { $regex: "^Roshan", $options: "i" } },
+          ],
+        },
+        {
+          $or: [
+            { _id: { $ne: "687y787g637ge3e3y7823e" } },
+            { firstName: { $regex: "^Roshan", $options: "i" } },
+          ],
+        },
+      ],
+    });
+    expect(getWhereSchema).toStrictEqual({
+      _id: { $ne: "687y787g637ge3e3y7823e" },
+      firstName: {
+        $regex: "^Roshan",
+        $options: "i",
+      },
+      todosCount: {
+        $gt: 1,
+      },
+    });
+  });
   it("should validate the access acl", () => {
     const accessMatrix = resolvers.validateAccess("read", {
       ctx: { user: { role: "ADMIN" } },
@@ -57,8 +134,8 @@ describe("Resolver Test", () => {
     expect(accessMatrix).toBeTruthy();
   });
 
-  it("should merge the access acl", () => {
-    const access = resolvers.mergeAcl();
+  it("should merge the access acl", async () => {
+    const access = await resolvers.mergeAcl();
     const defaultAcl = {
       default: false,
       acl: [
@@ -76,7 +153,6 @@ describe("Resolver Test", () => {
         },
       ],
     };
-    console.log(access);
     expect(access).toStrictEqual(defaultAcl);
   });
   it("should validate the access acl", () => {

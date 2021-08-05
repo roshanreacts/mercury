@@ -12,6 +12,7 @@ String.prototype.toProperCase = function () {
   });
 };
 class Mercury {
+  private _lists: Array<schemaType> = [];
   private _schema: string[] = [
     `
   scalar DateTime
@@ -134,6 +135,10 @@ class Mercury {
     return this._adminRole;
   }
 
+  public get schemaList() {
+    return this._lists;
+  }
+
   // public set adminRole(role: string) {
   //   this._adminRole = role;
   // }
@@ -169,6 +174,7 @@ class Mercury {
     if (!_.has(schema, "public")) {
       schema.public = false;
     }
+    this._lists.push({ _model: name, ...schema });
     const create = new Create(this);
     const createModel = create.createList({ _model: name, ...schema });
     this._schema.push(createModel.schema);

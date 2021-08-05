@@ -24,7 +24,6 @@ describe("Init mercury", () => {
   //     password: "Roshan@123",
   //   });
   //   await newUser.save();
-  //   console.log(newUser);
   //   expect(UserModel).toBeDefined();
   // });
 });
