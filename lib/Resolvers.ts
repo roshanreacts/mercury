@@ -215,6 +215,9 @@ class Resolvers {
           const populate = this.resolvePopulate(resolveInfo);
           await this.validateAccess("update", { root, args, ctx });
           const findModel = await Model.findById(args.id);
+          if (!findModel) {
+            throw new Error(`Record with id: ${args.id} not found`);
+          }
           this.hooks("beforeUpdate", {
             root,
             args,
@@ -229,9 +232,8 @@ class Resolvers {
             {
               new: true,
             }
-          )
-            .populate(populate)
-            .execPopulate();
+          );
+          await updateModel.populate(populate).execPopulate();
           this.hooks("afterUpdate", {
             root,
             args,
@@ -258,6 +260,9 @@ class Resolvers {
           await Promise.all(
             _.map(args.data, async (record: any) => {
               const findModel = await Model.findById(record.id);
+              if (!findModel) {
+                throw new Error(`Record with id: ${args.id} not found`);
+              }
               this.hooks("beforeUpdate", {
                 root,
                 args,
@@ -270,9 +275,8 @@ class Resolvers {
                 record.id,
                 record.data,
                 { new: true }
-              )
-                .populate(populate)
-                .execPopulate();
+              );
+              await updateRecord.populate(populate).execPopulate();
               this.hooks("afterUpdate", {
                 root,
                 args,
