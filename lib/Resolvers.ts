@@ -261,7 +261,7 @@ class Resolvers {
             _.map(args.data, async (record: any) => {
               const findModel = await Model.findById(record.id);
               if (!findModel) {
-                throw new Error(`Record with id: ${args.id} not found`);
+                throw new Error(`Record with id: ${record.id} not found`);
               }
               this.hooks("beforeUpdate", {
                 root,
