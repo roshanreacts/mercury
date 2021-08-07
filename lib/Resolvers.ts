@@ -183,25 +183,31 @@ class Resolvers {
         ) => {
           const populate = this.resolvePopulate(resolveInfo);
           await this.validateAccess("create", { root, args, ctx });
-          this.hooks("beforeCreate", {
-            root,
-            args,
-            ctx,
-            resolveInfo,
-            populate,
-          });
-          const allRecords = await Model.insertMany(args.data)
-            .populate(populate)
-            .execPopulate();
-          this.hooks("afterCreate", {
-            root,
-            args,
-            ctx,
-            resolveInfo,
-            populate,
-            docs: allRecords,
-          });
-          return await allRecords;
+          const allRecords: any = [];
+          await Promise.all(
+            _.map(args.data, async (record) => {
+              this.hooks("beforeCreate", {
+                root,
+                args,
+                ctx,
+                resolveInfo,
+                populate,
+              });
+              const newRecord = await Model.create(record);
+              await newRecord.populate(populate).execPopulate();
+              this.hooks("afterCreate", {
+                root,
+                args,
+                ctx,
+                resolveInfo,
+                populate,
+                docs: newRecord,
+              });
+              allRecords.push(newRecord);
+            })
+          );
+
+          return allRecords;
         };
         break;
 

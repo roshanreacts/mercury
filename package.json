@@ -1,6 +1,6 @@
 {
   "name": "@mercury-js/core",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "description": "Fully automated models and grpahql schema generator for your Apollo Server",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
