@@ -58,7 +58,7 @@ class Generate {
     this.genSchema.push(`type Query {`);
     // get All of the Model
     this.genSchema.push(
-      `  all${this.modelName}s(where: where${this.modelName}Input): [${this.modelName}]`
+      `  all${this.modelName}s(where: where${this.modelName}Input, offset: Int! = 0, limit: Int! = 10): ${this.modelName}Pagination`
     );
     // get one item from the model
     this.genSchema.push(
@@ -87,6 +87,17 @@ class Generate {
     });
     this.genSchema.push(`  AND: [where${this.modelName}Input]`);
     this.genSchema.push(`  OR: [where${this.modelName}Input]`);
+    this.genSchema.push(`}`);
+    this.genSchema.push(``);
+
+    // ********* Declare Model Pagination type **********
+    this.genSchema.push(`type ${this.modelName}Pagination {`);
+    this.genSchema.push(`  docs: [${this.modelName}]`);
+    this.genSchema.push(`  totalDocs: Int`);
+    this.genSchema.push(`  offset: Int`);
+    this.genSchema.push(`  limit: Int`);
+
+    // Close Pagination type
     this.genSchema.push(`}`);
     this.genSchema.push(``);
 

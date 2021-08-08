@@ -19,10 +19,16 @@ class Resolvers {
     this.modelFields = base.modelFields;
   }
 
-  resolvePopulate(resolveInfo: any): PopulateType {
+  resolvePopulate(resolveInfo: any, pagination: boolean = false): PopulateType {
     const pickRef = _.pickBy(this.modelFields, (item) => _.has(item, "ref"));
     const populateFields = _.keys(pickRef);
-    const parentFields = graphqlFields(resolveInfo);
+    let parentFields = graphqlFields(resolveInfo);
+
+    // If pagination then skip request.docs
+    if (pagination) {
+      parentFields = parentFields.docs;
+    }
+
     let populate: PopulateType = [];
     _.map(populateFields, (item) => {
       if (_.has(parentFields, item)) {
@@ -101,14 +107,14 @@ class Resolvers {
       case `all${this.modelName}s`:
         return async (
           root: any,
-          args: { where: any },
+          args: { where: any; offset: number; limit: number },
           ctx: any,
           resolveInfo: any
         ) => {
-          const populate = this.resolvePopulate(resolveInfo);
+          const populate = this.resolvePopulate(resolveInfo, true);
           const findAll = await Model.paginate(
             this.whereInputCompose(args.where),
-            { populate: populate }
+            { populate: populate, offset: args.offset, limit: args.limit }
           );
           await this.validateAccess("read", {
             root,
@@ -118,7 +124,7 @@ class Resolvers {
             populate,
             docs: findAll,
           });
-          return findAll.docs;
+          return findAll;
         };
         break;
       case `get${this.modelName}`:

@@ -132,7 +132,7 @@ input whereInt {
 
 export const UserGql = `
 type Query {
-  allUsers(where: whereUserInput): [User]
+  allUsers(where: whereUserInput, offset: Int! = 0, limit: Int! = 10): UserPagination
   getUser(where: whereUserInput): User
 }
 
@@ -146,6 +146,13 @@ input whereUserInput {
 
   AND: [whereUserInput]
   OR: [whereUserInput]
+}
+
+type UserPagination {
+  docs: [User]
+  totalDocs: Int
+  offset: Int
+  limit: Int
 }
 
 type Mutation {
