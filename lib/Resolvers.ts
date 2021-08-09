@@ -549,6 +549,18 @@ class Resolvers {
             ? { $nin: fieldReq.notIn }
             : null;
           break;
+        case "relationship":
+        case "relationship":
+          querySchema[field] = _.has(fieldReq, "is")
+            ? { $eq: fieldReq.is }
+            : _.has(fieldReq, "isNot")
+            ? { $ne: fieldReq.isNot }
+            : _.has(fieldReq, "in")
+            ? { $in: fieldReq.in }
+            : _.has(fieldReq, "notIn")
+            ? { $nin: fieldReq.notIn }
+            : null;
+          break;
         case "String":
           querySchema[field] = _.has(fieldReq, "is")
             ? { $eq: fieldReq.is }
