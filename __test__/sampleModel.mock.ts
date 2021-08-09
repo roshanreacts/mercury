@@ -77,6 +77,11 @@ export const UserSchema = {
       default: "NEW",
     },
     todos: {
+      type: "relationship",
+      ref: "Todo",
+      many: true,
+    },
+    todosVirtual: {
       type: "virtual",
       ref: "Todo",
       localField: "id",
@@ -143,6 +148,7 @@ input whereUserInput {
   todosCount: whereInt
   isAdmin: Boolean
   role: UserRoleEnumType
+  todos: whereID
 
   AND: [whereUserInput]
   OR: [whereUserInput]
@@ -172,6 +178,7 @@ type User {
   isAdmin: Currency
   role: UserRoleEnumType
   todos: [Todo]
+  todosVirtual: [Todo]
 }
 
 input createUserInput {
@@ -182,6 +189,7 @@ input createUserInput {
   isAdmin: Currency
   role: UserRoleEnumType
   todos: [String]
+  todosVirtual: [String]
 }
 input updateUserSchema {
   firstName: String
@@ -191,6 +199,7 @@ input updateUserSchema {
   isAdmin: Currency
   role: UserRoleEnumType
   todos: [String]
+  todosVirtual: [String]
 }
 
 input updateUserInput {

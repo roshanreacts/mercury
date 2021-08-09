@@ -76,11 +76,7 @@ class Generate {
         : false;
       if (!isRead) {
         const fieldType = this.getFieldType(fieldObj.type);
-        if (
-          fieldType &&
-          fieldType !== "scalar" &&
-          typeof fieldType == "string"
-        ) {
+        if (fieldType && typeof fieldType == "string") {
           this.genSchema.push(this.generateWhereInput(fieldName, fieldType));
         }
       }
@@ -282,6 +278,7 @@ class Generate {
   generateWhereInput(Field: string, type: string) {
     switch (type) {
       case "ID":
+      case "relationship":
         return `  ${Field}: whereID`;
         break;
 
