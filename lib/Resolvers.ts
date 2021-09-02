@@ -550,7 +550,6 @@ class Resolvers {
             : null;
           break;
         case "relationship":
-        case "relationship":
           querySchema[field] = _.has(fieldReq, "is")
             ? { $eq: fieldReq.is }
             : _.has(fieldReq, "isNot")
@@ -588,7 +587,7 @@ class Resolvers {
           querySchema[field] = { $eq: fieldReq };
           break;
         case "Int":
-        case "Date":
+        case "DateTime":
           querySchema[field] = _.has(fieldReq, "is")
             ? { $eq: fieldReq.is }
             : _.has(fieldReq, "isNot")

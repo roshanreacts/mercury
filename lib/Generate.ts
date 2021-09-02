@@ -18,7 +18,7 @@ const mongoFieldsTypeMap = [
   { type: "number", value: "Number" },
   { type: "float", value: Schema.Types.Decimal128 },
   { type: "boolean", value: "Boolean" },
-  { type: "date", value: Date },
+  { type: "date", value: "Date" },
   { type: "enum", value: "enum" },
   { type: "relationship", value: Schema.Types.ObjectId },
 ];
