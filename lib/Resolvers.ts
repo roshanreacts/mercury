@@ -586,6 +586,9 @@ class Resolvers {
         case "enum":
           querySchema[field] = { $eq: fieldReq };
           break;
+        case "Boolean":
+          querySchema[field] = { $eq: fieldReq };
+          break;
         case "Int":
         case "DateTime":
           querySchema[field] = _.has(fieldReq, "is")
