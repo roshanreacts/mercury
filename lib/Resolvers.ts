@@ -378,103 +378,110 @@ class Resolvers {
     args: any
   ): Promise<boolean> {
     const { ctx } = args;
-    const role = ctx.user.role;
-    const getAclMatrix = await this.mergeAcl(args);
-    const accessItem = _.find(getAclMatrix.acl, role);
-    const checkAccess = accessItem ? accessItem[role][accessType] : false;
+    const role: string = ctx.user.role;
+    const getAclMatrix = await this.mergeAcl(role, args);
+    const checkAccess: boolean =
+      getAclMatrix.acl?.[accessType] || getAclMatrix.default;
     if (!checkAccess) {
       throw new Error("Unauthorised access");
     }
     return true;
   }
 
-  async mergeAcl(args: any) {
+  async mergeAcl(
+    role: string,
+    args: any
+  ): Promise<{
+    default: boolean;
+    acl: {
+      read: boolean;
+      create: boolean;
+      update: boolean;
+      delete: boolean;
+    };
+  }> {
     const defaultVal =
       this.schema.access && this.schema.access.default != null
         ? this.schema.access.default
         : true;
+    let accessItem = _.find(this.schema.access?.acl, role);
     const defaultAcl = this.generateDefaultAcl(defaultVal);
-    const updatedAcl = await Promise.all(
-      _.map(defaultAcl.acl, async (item) => {
-        const getKeys = _.keys(item);
-        const roleName = getKeys[0];
-        let accessItem = _.find(this.schema.access?.acl, roleName);
-        if (accessItem != null) {
-          switch (typeof accessItem[roleName]) {
-            case "object":
-              return _.merge(item, accessItem);
-            case "boolean":
-              const accessItemBoolean = accessItem[roleName];
-              return {
-                [roleName]: {
-                  read: accessItemBoolean,
-                  create: accessItemBoolean,
-                  delete: accessItemBoolean,
-                  update: accessItemBoolean,
-                },
-              };
-            case "function":
-              const accessItemValue = accessItem[roleName];
-              const accessItemFunc =
-                typeof accessItemValue === "function"
-                  ? await accessItemValue(args)
-                  : defaultVal;
-              if (typeof accessItemFunc === "boolean") {
-                return {
-                  [roleName]: {
-                    read: accessItemFunc,
-                    create: accessItemFunc,
-                    delete: accessItemFunc,
-                    update: accessItemFunc,
-                  },
-                };
-              } else if (typeof accessItemFunc === "object") {
-                return { [roleName]: _.merge(item[roleName], accessItemFunc) };
-              }
+    const findRoleItem = _.find(defaultAcl.acl, role);
+    const item = findRoleItem?.[role];
+    let updatedAcl: verboseAccessType = item || {
+      read: defaultVal,
+      create: defaultVal,
+      delete: defaultVal,
+      update: defaultVal,
+    };
 
-            default:
-              return {
-                [roleName]: {
-                  read: defaultVal,
-                  create: defaultVal,
-                  delete: defaultVal,
-                  update: defaultVal,
-                },
-              };
-          }
-        } else {
-          return item;
+    if (accessItem != null) {
+      const roleItem = accessItem[role];
+      if (typeof roleItem === "object") {
+        updatedAcl = _.merge(item, roleItem);
+      } else if (typeof roleItem === "boolean") {
+        updatedAcl = {
+          read: roleItem,
+          create: roleItem,
+          delete: roleItem,
+          update: roleItem,
+        };
+      } else if (typeof roleItem === "function") {
+        const accessItemFunc = await roleItem(args);
+        if (typeof accessItemFunc === "boolean") {
+          updatedAcl = {
+            read: accessItemFunc,
+            create: accessItemFunc,
+            delete: accessItemFunc,
+            update: accessItemFunc,
+          };
+        } else if (typeof accessItemFunc === "object") {
+          updatedAcl = _.merge(item, accessItemFunc);
         }
-      })
-    );
+      } else {
+        updatedAcl = {
+          read: defaultVal,
+          create: defaultVal,
+          delete: defaultVal,
+          update: defaultVal,
+        };
+      }
+    }
 
     // Verbose field level Function
-    const verboseUpdatedAcl = await Promise.all(
-      _.map(updatedAcl, async (item) => {
-        const getKeys = _.keys(item);
-        const roleName: string = getKeys[0];
-        const accessItem = item[roleName];
+    let verboseUpdatedAcl: {
+      read: boolean;
+      create: boolean;
+      update: boolean;
+      delete: boolean;
+    } = {
+      read: defaultVal,
+      create: defaultVal,
+      delete: defaultVal,
+      update: defaultVal,
+    };
+    let accessItemVerbose = updatedAcl;
 
-        accessItem.read =
-          typeof accessItem.read === "function"
-            ? await accessItem.read(args)
-            : accessItem.read;
-        accessItem.create =
-          typeof accessItem.create === "function"
-            ? await accessItem.create(args)
-            : accessItem.create;
-        accessItem.update =
-          typeof accessItem.update === "function"
-            ? await accessItem.update(args)
-            : accessItem.update;
-        accessItem.delete =
-          typeof accessItem.delete === "function"
-            ? await accessItem.delete(args)
-            : accessItem.delete;
-
-        return { [roleName]: accessItem };
-      })
-    );
+    if (accessItemVerbose) {
+      verboseUpdatedAcl = {
+        read:
+          typeof accessItemVerbose.read === "function"
+            ? await accessItemVerbose.read(args)
+            : accessItemVerbose.read || defaultVal,
+        create:
+          typeof accessItemVerbose.create === "function"
+            ? await accessItemVerbose.create(args)
+            : accessItemVerbose.create || defaultVal,
+        update:
+          typeof accessItemVerbose.update === "function"
+            ? await accessItemVerbose.update(args)
+            : accessItemVerbose.update || defaultVal,
+        delete:
+          typeof accessItemVerbose.delete === "function"
+            ? await accessItemVerbose.delete(args)
+            : accessItemVerbose.delete || defaultVal,
+      };
+    }
     return { default: defaultVal, acl: verboseUpdatedAcl };
   }
 

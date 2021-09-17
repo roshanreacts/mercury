@@ -20,10 +20,10 @@ interface FieldsMap {
 }
 
 interface verboseAccessType {
-  create?: boolean | Function;
-  read?: boolean | Function;
-  update?: boolean | Function;
-  delete?: boolean | Function;
+  create?: boolean | AccessFunctionType;
+  read?: boolean | AccessFunctionType;
+  update?: boolean | AccessFunctionType;
+  delete?: boolean | AccessFunctionType;
 }
 
 interface ResolversMap {
@@ -35,12 +35,17 @@ interface ModelResolvers {
   Mutation?: ResolversMap;
 }
 
-type AccessFunctionType = (args: any) => verboseAccessType | boolean;
+type VerboseAccessFunctionType = (args: any) => verboseAccessType | boolean;
+type AccessFunctionType = (args: any) => boolean;
 
 interface AccessType {
   default?: boolean;
   acl: Array<{
-    [key: string]: boolean | AccessFunctionType | verboseAccessType;
+    [key: string]:
+      | boolean
+      | VerboseAccessFunctionType
+      | AccessFunctionType
+      | verboseAccessType;
   }>;
 }
 

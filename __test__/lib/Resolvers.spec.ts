@@ -20,7 +20,7 @@ describe("Resolver Test", () => {
         ...UserSchema,
         access: {
           default: false,
-          acl: [{ ADMIN: () => ({ read: () => true }) }],
+          acl: [{ USER: () => ({ read: () => true }) }],
         },
         hooks: {
           beforeCreate: hookFunc,
@@ -135,31 +135,18 @@ describe("Resolver Test", () => {
       },
     });
   });
-  it("should validate the access acl", () => {
-    const accessMatrix = resolvers.validateAccess("read", {
-      ctx: { user: { role: "ADMIN" } },
+  it("should validate the access acl", async () => {
+    const accessMatrix = await resolvers.validateAccess("read", {
+      ctx: { user: { role: "USER" } },
     });
     expect(accessMatrix).toBeTruthy();
   });
 
   it("should merge the access acl", async () => {
-    const access = await resolvers.mergeAcl();
+    const access = await resolvers.mergeAcl("USER");
     const defaultAcl = {
       default: false,
-      acl: [
-        {
-          ADMIN: { read: true, create: true, update: true, delete: true },
-        },
-        { USER: { read: false, create: false, update: false, delete: false } },
-        {
-          ANONYMOUS: {
-            read: false,
-            create: false,
-            update: false,
-            delete: false,
-          },
-        },
-      ],
+      acl: { read: true, create: false, update: false, delete: false },
     };
     expect(access).toStrictEqual(defaultAcl);
   });
