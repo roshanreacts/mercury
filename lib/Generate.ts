@@ -145,9 +145,7 @@ class Generate {
             ? fieldObj.graphqlType
             : this.getGraphqlField(fieldObj, fieldName);
           if (fieldType) {
-            this.genSchema.push(
-              `  ${fieldName}: ${fieldType}${fieldObj.isRequired ? "!" : ""}`
-            );
+            this.genSchema.push(`  ${fieldName}: ${fieldType}`);
           }
         }
       }

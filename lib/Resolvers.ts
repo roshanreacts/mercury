@@ -1,5 +1,7 @@
+// @ts-ignore
 import _ from "lodash";
 import graphqlFields from "graphql-fields";
+import Generate from "./Generate";
 
 class Resolvers {
   _list: Array<schemaType>;
@@ -19,47 +21,100 @@ class Resolvers {
     this.modelFields = base.modelFields;
   }
 
-  resolvePopulate(resolveInfo: any, pagination: boolean = false): PopulateType {
+  async resolvePopulate(
+    resolveInfo: any,
+    validFields: AccessFields,
+    args: any,
+    operationType: AccessKeys,
+    paginate = false
+  ): Promise<PopulateType> {
     const pickRef = _.pickBy(this.modelFields, (item) => _.has(item, "ref"));
     const populateFields = _.keys(pickRef);
     let parentFields = graphqlFields(resolveInfo);
 
     // If pagination then skip request.docs
-    if (pagination) {
+    if (paginate) {
       parentFields = parentFields.docs;
     }
 
-    let populate: PopulateType = [];
-    _.map(populateFields, (item) => {
-      if (_.has(parentFields, item)) {
-        const select = _.keys(parentFields[item]);
+    console.log("parentFields", parentFields);
+    console.log("populateFields", populateFields);
 
-        let populateSchema: any = {
-          path: item,
-          select: select.join(" "),
-        };
-        let childPopulate: { path: string; select: string }[] = [];
-        const findModelName = pickRef[item].ref;
-        let childListModel = _.find(this._list, ["_model", findModelName]);
-        const pickRefChild = _.pickBy(childListModel?.fields, (list) =>
-          _.has(list, "ref")
+    let populate: PopulateType = [];
+    await Promise.all(
+      _.map(populateFields, async (item) => {
+        console.log("item", item);
+        console.log(
+          "_.includes(validFields, item)",
+          _.includes(validFields, item)
         );
-        if (!_.isEmpty(pickRefChild)) {
-          const populateChildFields = _.keys(pickRefChild);
-          _.map(populateChildFields, (childItem) => {
-            if (_.includes(select, childItem)) {
-              const childSelect = _.keys(parentFields[item][childItem]);
-              childPopulate.push({
-                path: childItem,
-                select: childSelect.join(" "),
-              });
-            }
-          });
-          if (childPopulate) populateSchema.populate = childPopulate;
+
+        if (_.includes(validFields, item)) {
+          const findModelName = pickRef[item].ref;
+          console.log("findModelName", findModelName);
+          let parentListModel = _.find(this._list, ["_model", findModelName]);
+          console.log("parentListModel", parentListModel);
+          if (!parentListModel) return;
+          const parentGenerate = new Generate(
+            parentListModel,
+            this.generate._mercury
+          );
+          const parentAllowedKeys = await parentGenerate
+            .Resolvers()
+            .validateAccess(operationType, args);
+          console.log("parentAllowedKeys", parentAllowedKeys);
+          const select = _.keys(parentFields[item]);
+          const parentIntersection = _.intersection(parentAllowedKeys, select);
+          let populateSchema: any = {
+            path: item,
+            select: parentIntersection.join(" "),
+          };
+          console.log("populateSchema", populateSchema);
+
+          let childPopulate: { path: string; select: string }[] = [];
+          let childListModel = _.find(this._list, ["_model", findModelName]);
+
+          const pickRefChild = _.pickBy(childListModel?.fields, (list) =>
+            _.has(list, "ref")
+          );
+          if (!_.isEmpty(pickRefChild)) {
+            const populateChildFields = _.keys(pickRefChild);
+            Promise.all(
+              _.map(populateChildFields, async (childItem) => {
+                if (_.includes(parentIntersection, childItem)) {
+                  const findChildModelName = pickRefChild[childItem].ref;
+                  let childFindListModel = _.find(this._list, [
+                    "_model",
+                    findChildModelName,
+                  ]);
+                  if (!childFindListModel) return;
+                  const childGenerate = new Generate(
+                    childFindListModel,
+                    this.generate._mercury
+                  );
+                  const childAllowedKeys = await childGenerate
+                    .Resolvers()
+                    .validateAccess(operationType, args);
+                  console.log("childAllowedKeys", childAllowedKeys);
+                  const childSelect = _.keys(parentFields[item][childItem]);
+                  const intersectionByAllowed = _.intersection(
+                    childSelect,
+                    childAllowedKeys
+                  );
+                  childPopulate.push({
+                    path: childItem,
+                    select: intersectionByAllowed.join(" "),
+                  });
+                }
+              })
+            );
+            if (childPopulate) populateSchema.populate = childPopulate;
+          }
+
+          populate.push(populateSchema);
         }
-        populate.push(populateSchema);
-      }
-    });
+      })
+    );
     return populate;
   }
 
@@ -111,19 +166,36 @@ class Resolvers {
           ctx: any,
           resolveInfo: any
         ) => {
-          const populate = this.resolvePopulate(resolveInfo, true);
-          const findAll = await Model.paginate(
-            this.whereInputCompose(args.where),
-            { populate: populate, offset: args.offset, limit: args.limit }
-          );
-          await this.validateAccess("read", {
+          let parentFields = _.keys(graphqlFields(resolveInfo).docs);
+          const allowedKey = await this.validateAccess("read", {
             root,
             args,
             ctx,
             resolveInfo,
-            populate,
-            docs: findAll,
           });
+
+          const populate = await this.resolvePopulate(
+            resolveInfo,
+            allowedKey,
+            { root, args, ctx, resolveInfo },
+            "read",
+            true
+          );
+          const selectedKey = _.intersection(parentFields, allowedKey);
+          console.log("populate", populate);
+          console.log("selectedKey", selectedKey);
+          console.log("allowedKey", allowedKey);
+          console.log("parentFields", parentFields);
+          const findAll = await Model.paginate(
+            this.whereInputCompose(args.where),
+            {
+              select: selectedKey.join(" "),
+              populate: populate,
+              offset: args.offset,
+              limit: args.limit,
+            }
+          );
+
           return findAll;
         };
         break;
@@ -134,18 +206,26 @@ class Resolvers {
           ctx: any,
           resolveInfo: any
         ) => {
-          const populate = this.resolvePopulate(resolveInfo);
-          const findOne = await Model.findOne(
-            this.whereInputCompose(args.where)
-          ).populate(populate);
-          await this.validateAccess("read", {
+          let parentFields = _.keys(graphqlFields(resolveInfo));
+          const allowedKey = await this.validateAccess("read", {
             root,
             args,
             ctx,
             resolveInfo,
-            populate,
-            docs: findOne,
           });
+
+          const populate = await this.resolvePopulate(
+            resolveInfo,
+            allowedKey,
+            { root, args, ctx, resolveInfo },
+            "read"
+          );
+          const selectedKey = _.intersection(parentFields, allowedKey);
+          const findOne = await Model.findOne(
+            this.whereInputCompose(args.where)
+          )
+            .select(selectedKey.join(" "))
+            .populate(populate);
           return findOne;
         };
         break;
@@ -157,14 +237,27 @@ class Resolvers {
           ctx: any,
           resolveInfo: any
         ) => {
-          const populate = this.resolvePopulate(resolveInfo);
-          await this.validateAccess("create", { root, args, ctx });
+          let parentFields = _.keys(graphqlFields(resolveInfo));
+          const allowedKey = await this.validateAccess("create", {
+            root,
+            args,
+            ctx,
+            resolveInfo,
+          });
+
+          const populate = await this.resolvePopulate(
+            resolveInfo,
+            allowedKey,
+            { root, args, ctx, resolveInfo },
+            "create"
+          );
+          const selectedKey = _.intersection(parentFields, allowedKey);
           this.hooks("beforeCreate", {
             root,
             args,
             ctx,
             resolveInfo,
-            populate,
+            allowedKey,
           });
           const newModel = new Model(args.data);
           await newModel.save();
@@ -176,7 +269,10 @@ class Resolvers {
             populate,
             docs: newModel,
           });
-          return await newModel.populate(populate).execPopulate();
+          return await newModel
+            .select(selectedKey.join(" "))
+            .populate(populate)
+            .execPopulate();
         };
         break;
 
@@ -187,8 +283,21 @@ class Resolvers {
           ctx: any,
           resolveInfo: any
         ) => {
-          const populate = this.resolvePopulate(resolveInfo);
-          await this.validateAccess("create", { root, args, ctx });
+          let parentFields = _.keys(graphqlFields(resolveInfo));
+          const allowedKey = await this.validateAccess("create", {
+            root,
+            args,
+            ctx,
+            resolveInfo,
+          });
+
+          const populate = await this.resolvePopulate(
+            resolveInfo,
+            allowedKey,
+            { root, args, ctx, resolveInfo },
+            "create"
+          );
+          const selectedKey = _.intersection(parentFields, allowedKey);
           const allRecords: any = [];
           await Promise.all(
             _.map(args.data, async (record) => {
@@ -197,16 +306,19 @@ class Resolvers {
                 args,
                 ctx,
                 resolveInfo,
-                populate,
+                allowedKey,
               });
               const newRecord = await Model.create(record);
-              await newRecord.populate(populate).execPopulate();
+              await newRecord
+                .select(selectedKey.join(" "))
+                .populate(populate)
+                .execPopulate();
               this.hooks("afterCreate", {
                 root,
                 args,
                 ctx,
                 resolveInfo,
-                populate,
+                allowedKey,
                 docs: newRecord,
               });
               allRecords.push(newRecord);
@@ -224,8 +336,21 @@ class Resolvers {
           ctx: any,
           resolveInfo: any
         ) => {
-          const populate = this.resolvePopulate(resolveInfo);
-          await this.validateAccess("update", { root, args, ctx });
+          let parentFields = _.keys(graphqlFields(resolveInfo));
+          const allowedKey = await this.validateAccess("update", {
+            root,
+            args,
+            ctx,
+            resolveInfo,
+          });
+
+          const populate = await this.resolvePopulate(
+            resolveInfo,
+            allowedKey,
+            { root, args, ctx, resolveInfo },
+            "update"
+          );
+          const selectedKey = _.intersection(parentFields, allowedKey);
           const findModel = await Model.findById(args.id);
           if (!findModel) {
             throw new Error(`Record with id: ${args.id} not found`);
@@ -235,7 +360,7 @@ class Resolvers {
             args,
             ctx,
             resolveInfo,
-            populate,
+            allowedKey,
             prevRecord: findModel,
           });
           const updateModel = await Model.findByIdAndUpdate(
@@ -245,13 +370,16 @@ class Resolvers {
               new: true,
             }
           );
-          await updateModel.populate(populate).execPopulate();
+          await updateModel
+            .select(selectedKey.join(" "))
+            .populate(populate)
+            .execPopulate();
           this.hooks("afterUpdate", {
             root,
             args,
             ctx,
             resolveInfo,
-            populate,
+            allowedKey,
             prevRecord: findModel,
             docs: updateModel,
           });
@@ -266,8 +394,21 @@ class Resolvers {
           ctx: any,
           resolveInfo: any
         ) => {
-          const populate = this.resolvePopulate(resolveInfo);
-          await this.validateAccess("update", { root, args, ctx });
+          let parentFields = _.keys(graphqlFields(resolveInfo));
+          const allowedKey = await this.validateAccess("update", {
+            root,
+            args,
+            ctx,
+            resolveInfo,
+          });
+
+          const populate = await this.resolvePopulate(
+            resolveInfo,
+            allowedKey,
+            { root, args, ctx, resolveInfo },
+            "update"
+          );
+          const selectedKey = _.intersection(parentFields, allowedKey);
           let updatedRecords: any[] = [];
           await Promise.all(
             _.map(args.data, async (record: any) => {
@@ -280,7 +421,7 @@ class Resolvers {
                 args,
                 ctx,
                 resolveInfo,
-                populate,
+                allowedKey,
                 prevRecord: findModel,
               });
               const updateRecord = await Model.findByIdAndUpdate(
@@ -288,13 +429,16 @@ class Resolvers {
                 record.data,
                 { new: true }
               );
-              await updateRecord.populate(populate).execPopulate();
+              await updateRecord
+                .select(selectedKey.join(" "))
+                .populate(populate)
+                .execPopulate();
               this.hooks("afterUpdate", {
                 root,
                 args,
                 ctx,
                 resolveInfo,
-                populate,
+                allowedKey,
                 prevRecord: findModel,
                 docs: updateRecord,
               });
@@ -312,7 +456,12 @@ class Resolvers {
           ctx: any,
           resolveInfo: any
         ) => {
-          await this.validateAccess("delete", { root, args, ctx, resolveInfo });
+          await this.validateAccess("delete", {
+            root,
+            args,
+            ctx,
+            resolveInfo,
+          });
           const findModel = await Model.findById(args.id);
           this.hooks("beforeDelete", {
             root,
@@ -341,7 +490,12 @@ class Resolvers {
           ctx: any,
           resolveInfo: any
         ) => {
-          await this.validateAccess("delete", { root, args, ctx });
+          await this.validateAccess("delete", {
+            root,
+            args,
+            ctx,
+            resolveInfo,
+          });
           await Promise.all(
             _.map(args.ids, async (id: any) => {
               const findModel = await Model.findById(id);
@@ -376,7 +530,7 @@ class Resolvers {
   async validateAccess(
     accessType: "read" | "create" | "update" | "delete",
     args: any
-  ): Promise<boolean> {
+  ): Promise<AccessFields> {
     const { ctx } = args;
     const role: string = ctx.user.role;
     const getAclMatrix = await this.mergeAcl(role, args);
@@ -385,7 +539,7 @@ class Resolvers {
     if (!checkAccess) {
       throw new Error("Unauthorised access");
     }
-    return true;
+    return getAclMatrix.accessList[accessType];
   }
 
   async mergeAcl(
@@ -399,6 +553,7 @@ class Resolvers {
       update: boolean;
       delete: boolean;
     };
+    accessList: verboseAccessFieldType;
   }> {
     const defaultVal =
       this.schema.access && this.schema.access.default != null
@@ -449,6 +604,18 @@ class Resolvers {
     }
 
     // Verbose field level Function
+    const defaultAccessKeys = defaultVal ? _.keys(this.modelFields) : [];
+    let accessList: {
+      read: AccessFields;
+      create: AccessFields;
+      update: AccessFields;
+      delete: AccessFields;
+    } = {
+      read: defaultAccessKeys,
+      create: defaultAccessKeys,
+      delete: defaultAccessKeys,
+      update: defaultAccessKeys,
+    };
     let verboseUpdatedAcl: {
       read: boolean;
       create: boolean;
@@ -463,26 +630,29 @@ class Resolvers {
     let accessItemVerbose = updatedAcl;
 
     if (accessItemVerbose) {
-      verboseUpdatedAcl = {
-        read:
-          typeof accessItemVerbose.read === "function"
-            ? await accessItemVerbose.read(args)
-            : accessItemVerbose.read || defaultVal,
-        create:
-          typeof accessItemVerbose.create === "function"
-            ? await accessItemVerbose.create(args)
-            : accessItemVerbose.create || defaultVal,
-        update:
-          typeof accessItemVerbose.update === "function"
-            ? await accessItemVerbose.update(args)
-            : accessItemVerbose.update || defaultVal,
-        delete:
-          typeof accessItemVerbose.delete === "function"
-            ? await accessItemVerbose.delete(args)
-            : accessItemVerbose.delete || defaultVal,
-      };
+      _.map(["read", "create", "update", "delete"], async (key: AccessKeys) => {
+        const accessIterateItem = accessItemVerbose[key];
+        if (!accessIterateItem) return;
+        let accessStatus: boolean;
+        if (typeof accessIterateItem === "function") {
+          const access = await accessIterateItem(args);
+          accessStatus = _.isArray(access) ? true : access || defaultVal;
+        } else {
+          if (_.isArray(accessIterateItem)) {
+            accessList[key] = accessIterateItem;
+            accessStatus = true;
+          } else {
+            accessStatus = accessIterateItem || defaultVal;
+          }
+        }
+        verboseUpdatedAcl[key] = accessStatus;
+      });
     }
-    return { default: defaultVal, acl: verboseUpdatedAcl };
+    return {
+      default: defaultVal,
+      acl: verboseUpdatedAcl,
+      accessList: accessList,
+    };
   }
 
   generateDefaultAcl(defaultValue: boolean) {
@@ -538,9 +708,9 @@ class Resolvers {
   whereInputMap(input: any) {
     let querySchema: any = {};
     _.mapKeys(input, (fieldReq: any, field: string) => {
-      let key: string | undefined;
+      let key: string | undefined | any;
       if (field !== "id") {
-        key = this.generate.getFieldType(this.modelFields[field].type);
+        key = this.generate.getFieldType(this.modelFields[field].type, "gql");
       } else {
         key = "ID";
       }

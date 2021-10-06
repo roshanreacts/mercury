@@ -19,11 +19,21 @@ interface FieldsMap {
   };
 }
 
+type AccessFields = Array<string | null>;
+type AccessKeys = "read" | "create" | "update" | "delete";
+
+interface verboseAccessFieldType {
+  create: AccessFields;
+  read: AccessFields;
+  update: AccessFields;
+  delete: AccessFields;
+}
+
 interface verboseAccessType {
-  create?: boolean | AccessFunctionType;
-  read?: boolean | AccessFunctionType;
-  update?: boolean | AccessFunctionType;
-  delete?: boolean | AccessFunctionType;
+  create?: boolean | AccessFunctionType | AccessFields;
+  read?: boolean | AccessFunctionType | AccessFields;
+  update?: boolean | AccessFunctionType | AccessFields;
+  delete?: boolean | AccessFunctionType | AccessFields;
 }
 
 interface ResolversMap {
@@ -36,7 +46,7 @@ interface ModelResolvers {
 }
 
 type VerboseAccessFunctionType = (args: any) => verboseAccessType | boolean;
-type AccessFunctionType = (args: any) => boolean;
+type AccessFunctionType = (args: any) => boolean | AccessFields;
 
 interface AccessType {
   default?: boolean;

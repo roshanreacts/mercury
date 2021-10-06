@@ -172,7 +172,7 @@ type Mutation {
 
 type User {
   id: ID!
-  firstName: String!
+  firstName: String
   lastName: String
   todosCount: Int
   isAdmin: Currency

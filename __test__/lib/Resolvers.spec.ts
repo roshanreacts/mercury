@@ -9,6 +9,16 @@ import {
 } from "../sampleModel.mock";
 
 describe("Resolver Test", () => {
+  let defaultAccessUserKey = [
+    "firstName",
+    "lastName",
+    "todosCount",
+    "password",
+    "isAdmin",
+    "role",
+    "todos",
+    "todosVirtual",
+  ];
   let resolvers: any;
   let roles: Array<string> = ["ADMIN", "USER", "ANONYMOUS"];
   const hookFunc = jest.fn();
@@ -20,7 +30,7 @@ describe("Resolver Test", () => {
         ...UserSchema,
         access: {
           default: false,
-          acl: [{ USER: () => ({ read: () => true }) }],
+          acl: [{ USER: () => ({ read: ["firstName"] }) }],
         },
         hooks: {
           beforeCreate: hookFunc,
@@ -139,7 +149,7 @@ describe("Resolver Test", () => {
     const accessMatrix = await resolvers.validateAccess("read", {
       ctx: { user: { role: "USER" } },
     });
-    expect(accessMatrix).toBeTruthy();
+    expect(accessMatrix).toStrictEqual(["firstName"]);
   });
 
   it("should merge the access acl", async () => {
@@ -147,6 +157,12 @@ describe("Resolver Test", () => {
     const defaultAcl = {
       default: false,
       acl: { read: true, create: false, update: false, delete: false },
+      accessList: {
+        read: ["firstName"],
+        create: [],
+        update: [],
+        delete: [],
+      },
     };
     expect(access).toStrictEqual(defaultAcl);
   });
