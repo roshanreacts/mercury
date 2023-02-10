@@ -1,4 +1,4 @@
-interface FieldsMap {
+export interface FieldsMap {
   [name: string]: {
     type: string;
     isRequired?: boolean;
@@ -19,36 +19,36 @@ interface FieldsMap {
   };
 }
 
-type AccessFields = Array<string | null>;
-type AccessKeys = "read" | "create" | "update" | "delete";
+export type AccessFields = Array<string | null>;
+export type AccessKeys = "read" | "create" | "update" | "delete";
 
-interface verboseAccessFieldType {
+export interface verboseAccessFieldType {
   create: AccessFields;
   read: AccessFields;
   update: AccessFields;
   delete: AccessFields;
 }
 
-interface verboseAccessType {
+export interface verboseAccessType {
   create?: boolean | AccessFunctionType | AccessFields;
   read?: boolean | AccessFunctionType | AccessFields;
   update?: boolean | AccessFunctionType | AccessFields;
   delete?: boolean | AccessFunctionType | AccessFields;
 }
 
-interface ResolversMap {
+export interface ResolversMap {
   [name: string]: Function;
 }
 
-interface ModelResolvers {
+export interface ModelResolvers {
   Query?: ResolversMap;
   Mutation?: ResolversMap;
 }
 
-type VerboseAccessFunctionType = (args: any) => verboseAccessType | boolean;
-type AccessFunctionType = (args: any) => boolean | AccessFields;
+export type VerboseAccessFunctionType = (args: any) => verboseAccessType | boolean;
+export type AccessFunctionType = (args: any) => boolean | AccessFields;
 
-interface AccessType {
+export interface AccessType {
   default?: boolean;
   acl: Array<{
     [key: string]:
@@ -59,7 +59,7 @@ interface AccessType {
   }>;
 }
 
-interface HookType {
+export interface HookType {
   beforeCreate?: Function;
   afterCreate?: Function;
   beforeUpdate?: Function;
@@ -67,7 +67,7 @@ interface HookType {
   beforeDelete?: Function;
   afterDelete?: Function;
 }
-interface listSchema {
+export interface listSchema {
   access?: AccessType;
   fields: FieldMap;
   resolvers?: ModelResolvers;
@@ -76,7 +76,7 @@ interface listSchema {
   hooks?: HookType;
 }
 
-interface _model {
+export interface _model {
   _model: string;
 }
-type schemaType = _model & listSchema;
+export type schemaType = _model & listSchema;

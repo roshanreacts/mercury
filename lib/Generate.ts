@@ -1,7 +1,12 @@
 import _ from "lodash";
-import { Schema, model } from "mongoose";
+import mongoose from "mongoose";
+// @ts-ignore
+import * as mongooseBcrypt from "mongoose-bcrypt";
+// @ts-ignore
+import * as mongoosePaginateV2 from "mongoose-paginate-v2";
 import Resolvers from "./Resolvers";
 
+const {Schema, model} = mongoose;
 const fieldsTypeMap = [
   { type: "string", value: "String" },
   { type: "number", value: "Int" },
@@ -331,7 +336,7 @@ class Generate {
   }
 
   // Mongoose model generator
-  mongoModel() {
+  async mongoModel() {
     const mongoSchemaObj: any = {};
     const virtualFields: Array<{
       fieldName: string;
@@ -380,8 +385,8 @@ class Generate {
     });
 
     // Add option to include custom plugins
-    newSchema.plugin(require("mongoose-bcrypt"));
-    newSchema.plugin(require("mongoose-paginate-v2"));
+    newSchema.plugin(mongooseBcrypt);
+    newSchema.plugin(mongoosePaginateV2);
     const newModel = model(this.modelName, newSchema);
     return {
       newSchema,

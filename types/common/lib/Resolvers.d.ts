@@ -1,18 +1,18 @@
-interface Resolvers {
+export interface Resolvers {
   _roles: Array<string>;
   generate: Generate;
   modelName: string;
   modelFields: FieldsMap;
 }
 
-type PopulateType = Array<{
+export type PopulateType = Array<{
   path: string;
   select: string;
   populate?: Array<{ path: string; select?: string }>;
   options?: any;
 }>;
 
-interface FinalAclMatrix {
+export interface FinalAclMatrix {
   default: boolean;
   acl: [
     {
