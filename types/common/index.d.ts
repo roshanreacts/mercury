@@ -1,4 +1,4 @@
-export interface Mercury {
+interface Mercury {
   schemaList: Array<schemaType>;
   roles: Array<string>;
   adminRole: string;
@@ -6,8 +6,8 @@ export interface Mercury {
   path: string;
 }
 
-export type DbAdapter = "mongoose";
+type DbAdapter = "mongoose";
 
-export declare interface String {
+declare interface String {
   toProperCase: () => string;
 }

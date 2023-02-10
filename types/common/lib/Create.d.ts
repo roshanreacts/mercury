@@ -1,4 +1,4 @@
-export interface FieldsMap {
+interface FieldsMap {
   [name: string]: {
     type: string;
     isRequired?: boolean;
@@ -19,36 +19,36 @@ export interface FieldsMap {
   };
 }
 
-export type AccessFields = Array<string | null>;
-export type AccessKeys = "read" | "create" | "update" | "delete";
+type AccessFields = Array<string | null>;
+type AccessKeys = "read" | "create" | "update" | "delete";
 
-export interface verboseAccessFieldType {
+interface verboseAccessFieldType {
   create: AccessFields;
   read: AccessFields;
   update: AccessFields;
   delete: AccessFields;
 }
 
-export interface verboseAccessType {
+interface verboseAccessType {
   create?: boolean | AccessFunctionType | AccessFields;
   read?: boolean | AccessFunctionType | AccessFields;
   update?: boolean | AccessFunctionType | AccessFields;
   delete?: boolean | AccessFunctionType | AccessFields;
 }
 
-export interface ResolversMap {
+interface ResolversMap {
   [name: string]: Function;
 }
 
-export interface ModelResolvers {
+interface ModelResolvers {
   Query?: ResolversMap;
   Mutation?: ResolversMap;
 }
 
-export type VerboseAccessFunctionType = (args: any) => verboseAccessType | boolean;
-export type AccessFunctionType = (args: any) => boolean | AccessFields;
+type VerboseAccessFunctionType = (args: any) => verboseAccessType | boolean;
+type AccessFunctionType = (args: any) => boolean | AccessFields;
 
-export interface AccessType {
+interface AccessType {
   default?: boolean;
   acl: Array<{
     [key: string]:
@@ -59,7 +59,7 @@ export interface AccessType {
   }>;
 }
 
-export interface HookType {
+interface HookType {
   beforeCreate?: Function;
   afterCreate?: Function;
   beforeUpdate?: Function;
@@ -67,7 +67,7 @@ export interface HookType {
   beforeDelete?: Function;
   afterDelete?: Function;
 }
-export interface listSchema {
+interface listSchema {
   access?: AccessType;
   fields: FieldMap;
   resolvers?: ModelResolvers;
@@ -76,7 +76,7 @@ export interface listSchema {
   hooks?: HookType;
 }
 
-export interface _model {
+interface _model {
   _model: string;
 }
-export type schemaType = _model & listSchema;
+type schemaType = _model & listSchema;

@@ -385,8 +385,8 @@ class Generate {
     });
 
     // Add option to include custom plugins
-    newSchema.plugin(mongooseBcrypt);
-    newSchema.plugin(mongoosePaginateV2);
+    newSchema.plugin(mongooseBcrypt.default);
+    newSchema.plugin(mongoosePaginateV2.default);
     const newModel = model(this.modelName, newSchema);
     return {
       newSchema,

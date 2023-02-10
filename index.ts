@@ -184,5 +184,4 @@ class Mercury {
 }
 
 const mercury = new Mercury();
-
 export default mercury;
