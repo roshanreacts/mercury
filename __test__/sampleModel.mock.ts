@@ -1,27 +1,27 @@
 export const TodoSchema = {
   fields: {
     name: {
-      type: "string",
+      type: 'string',
       isRequired: true,
     },
     isCompleted: {
-      type: "boolean",
+      type: 'boolean',
       default: false,
     },
     owner: {
-      type: "relationship",
-      ref: "User",
+      type: 'relationship',
+      ref: 'User',
       many: false,
     },
   },
   resolvers: {
     Query: {
       getTodo: (root: any, args: any, schema: any) => {
-        return { id: "NS2343", name: "Roshan", isCompleted: false };
+        return { id: 'NS2343', name: 'Roshan', isCompleted: false }
       },
     },
   },
-};
+}
 
 export const TodoGql = `
 type Query {
@@ -43,56 +43,56 @@ type Todo {
   name: String!
   isCompleted: Boolean
 }
-`;
+`
 
 export const UserSchema = {
   fields: {
     firstName: {
-      type: "string",
+      type: 'string',
       isRequired: true,
     },
     lastName: {
-      type: "string",
+      type: 'string',
     },
     todosCount: {
-      type: "number",
+      type: 'number',
       default: 0,
     },
     password: {
-      type: "string",
+      type: 'string',
       isRequired: true,
       ignoreGraphql: {
         read: true,
       },
     },
     isAdmin: {
-      type: "boolean",
+      type: 'boolean',
       default: false,
-      graphqlType: "Currency",
+      graphqlType: 'Currency',
     },
     role: {
-      type: "enum",
-      enumType: "string",
-      enum: ["NEW", "STATUS"],
-      default: "NEW",
+      type: 'enum',
+      enumType: 'string',
+      enum: ['NEW', 'STATUS'],
+      default: 'NEW',
     },
     todos: {
-      type: "relationship",
-      ref: "Todo",
+      type: 'relationship',
+      ref: 'Todo',
       many: true,
     },
     todosVirtual: {
-      type: "virtual",
-      ref: "Todo",
-      localField: "id",
-      foreignField: "owner",
+      type: 'virtual',
+      ref: 'Todo',
+      localField: 'id',
+      foreignField: 'owner',
       many: true,
     },
   },
   resolvers: {
     Query: {
       login: (root: any, args: any, schema: any) => {
-        return { id: "NS2343", name: "Roshan", isCompleted: false };
+        return { id: 'NS2343', name: 'Roshan', isCompleted: false }
       },
     },
   },
@@ -101,7 +101,7 @@ export const UserSchema = {
     login(username: String, password: String): User
   }
   `,
-};
+}
 
 export const baseTypedefs = `
 input whereID {
@@ -133,7 +133,7 @@ input whereInt {
   gte: Int
   in: [Int]
   notIn: [Int]
-}`;
+}`
 
 export const UserGql = `
 type Query {
@@ -217,4 +217,4 @@ enum UserRoleEnumType {
   STATUS
 }
 
-`;
+`

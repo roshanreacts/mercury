@@ -1,22 +1,22 @@
-import mercury from "../index";
-import { TodoSchema, TodoGql, UserSchema, UserGql } from "./sampleModel.mock";
-describe("Init mercury", () => {
+import mercury from '../dist/cjs/index'
+import { TodoSchema, TodoGql, UserSchema, UserGql } from './sampleModel.mock'
+describe('Init mercury', () => {
   // Init the mercury config
   // mercury.roles = ["HELO", "STATUS"];
   // mercury.adminRole = "HELO";
-  it("should initialize mercury", () => {
-    expect(mercury.resolvers).toBeDefined();
-  });
-  it("should create list", () => {
+  it('should initialize mercury', () => {
+    expect(mercury.resolvers).toBeDefined()
+  })
+  it('should create list', () => {
     // mercury.createList("Todo", TodoSchema);
-    mercury.createList("User", UserSchema);
+    mercury.createList('User', UserSchema)
 
-    expect(mercury.schema).toBeDefined();
-    expect(mercury.resolvers).toBeDefined();
-    expect(mercury.db).toBeDefined();
-    expect(mercury.roles).toStrictEqual(["ADMIN", "USER", "ANONYMOUS"]);
-    expect(mercury.adminRole).toBe("ADMIN");
-  });
+    expect(mercury.schema).toBeDefined()
+    expect(mercury.resolvers).toBeDefined()
+    expect(mercury.db).toBeDefined()
+    expect(mercury.roles).toStrictEqual(['SUPERADMIN', 'USER', 'ANONYMOUS'])
+    expect(mercury.adminRole).toBe('SUPERADMIN')
+  })
   // it("should bcrypt password", async () => {
   //   const UserModel = mercury.dataModels.Models.UserModel;
   //   const newUser = new UserModel({
@@ -26,4 +26,4 @@ describe("Init mercury", () => {
   //   await newUser.save();
   //   expect(UserModel).toBeDefined();
   // });
-});
+})

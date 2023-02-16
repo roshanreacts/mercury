@@ -1,36 +1,36 @@
-import Generate from "../../lib/Generate";
-import Resolvers from "../../lib/Resolvers";
+import Generate from '../../src/Generate'
+import Resolvers from '../../src/Resolvers'
 import {
   TodoSchema,
   TodoGql,
   UserSchema,
   UserGql,
   baseTypedefs,
-} from "../sampleModel.mock";
+} from '../sampleModel.mock'
 
-describe("Resolver Test", () => {
-  let defaultAccessUserKey = [
-    "firstName",
-    "lastName",
-    "todosCount",
-    "password",
-    "isAdmin",
-    "role",
-    "todos",
-    "todosVirtual",
-  ];
-  let resolvers: any;
-  let roles: Array<string> = ["ADMIN", "USER", "ANONYMOUS"];
-  const hookFunc = jest.fn();
+describe('Resolver Test', () => {
+  const defaultAccessUserKey = [
+    'firstName',
+    'lastName',
+    'todosCount',
+    'password',
+    'isAdmin',
+    'role',
+    'todos',
+    'todosVirtual',
+  ]
+  let resolvers: any
+  const roles: Array<string> = ['ADMIN', 'USER', 'ANONYMOUS']
+  const hookFunc = jest.fn()
 
   beforeAll(() => {
     const generate = new Generate(
       {
-        _model: "User",
+        _model: 'User',
         ...UserSchema,
         access: {
           default: false,
-          acl: [{ USER: () => ({ read: ["firstName"] }) }],
+          acl: [{ USER: () => ({ read: ['firstName'] }) }],
         },
         hooks: {
           beforeCreate: hookFunc,
@@ -42,50 +42,50 @@ describe("Resolver Test", () => {
         },
       },
       {
-        adminRole: "ADMIN",
+        adminRole: 'ADMIN',
         roles,
-        adapter: "mongoose",
-        path: "./",
+        adapter: 'mongoose',
+        path: './',
         schemaList: [],
       }
-    );
-    resolvers = new Resolvers(generate);
-  });
-  it("should compose where input to schema", () => {
+    )
+    resolvers = new Resolvers(generate)
+  })
+  it('should compose where input to schema', () => {
     const input = {
       id: {
-        isNot: "687y787g637ge3e3y7823e",
+        isNot: '687y787g637ge3e3y7823e',
       },
       firstName: {
-        startsWith: "Roshan",
+        startsWith: 'Roshan',
       },
       todosCount: { gt: 1 },
-    };
-    const getWhereSchema = resolvers.whereInputMap(input);
+    }
+    const getWhereSchema = resolvers.whereInputMap(input)
     expect(getWhereSchema).toStrictEqual({
-      _id: { $ne: "687y787g637ge3e3y7823e" },
+      _id: { $ne: '687y787g637ge3e3y7823e' },
       firstName: {
-        $regex: "^Roshan",
-        $options: "i",
+        $regex: '^Roshan',
+        $options: 'i',
       },
       todosCount: {
         $gt: 1,
       },
-    });
-  });
-  it("should generate where input to schema with and or", () => {
+    })
+  })
+  it('should generate where input to schema with and or', () => {
     const inputWithAndOr = {
       AND: [
         {
           OR: [
             {
               id: {
-                isNot: "687y787g637ge3e3y7823e",
+                isNot: '687y787g637ge3e3y7823e',
               },
             },
             {
               firstName: {
-                startsWith: "Roshan",
+                startsWith: 'Roshan',
               },
             },
           ],
@@ -94,81 +94,81 @@ describe("Resolver Test", () => {
           OR: [
             {
               id: {
-                isNot: "687y787g637ge3e3y7823e",
+                isNot: '687y787g637ge3e3y7823e',
               },
             },
             {
               firstName: {
-                startsWith: "Roshan",
+                startsWith: 'Roshan',
               },
             },
           ],
         },
       ],
-    };
+    }
 
     const input = {
       id: {
-        isNot: "687y787g637ge3e3y7823e",
+        isNot: '687y787g637ge3e3y7823e',
       },
       firstName: {
-        startsWith: "Roshan",
+        startsWith: 'Roshan',
       },
       todosCount: { gt: 1 },
-    };
-    const getWhereSchemaWithAndOr = resolvers.whereInputCompose(inputWithAndOr);
-    const getWhereSchema = resolvers.whereInputCompose(input);
+    }
+    const getWhereSchemaWithAndOr = resolvers.whereInputCompose(inputWithAndOr)
+    const getWhereSchema = resolvers.whereInputCompose(input)
     expect(getWhereSchemaWithAndOr).toStrictEqual({
       $and: [
         {
           $or: [
-            { _id: { $ne: "687y787g637ge3e3y7823e" } },
-            { firstName: { $regex: "^Roshan", $options: "i" } },
+            { _id: { $ne: '687y787g637ge3e3y7823e' } },
+            { firstName: { $regex: '^Roshan', $options: 'i' } },
           ],
         },
         {
           $or: [
-            { _id: { $ne: "687y787g637ge3e3y7823e" } },
-            { firstName: { $regex: "^Roshan", $options: "i" } },
+            { _id: { $ne: '687y787g637ge3e3y7823e' } },
+            { firstName: { $regex: '^Roshan', $options: 'i' } },
           ],
         },
       ],
-    });
+    })
     expect(getWhereSchema).toStrictEqual({
-      _id: { $ne: "687y787g637ge3e3y7823e" },
+      _id: { $ne: '687y787g637ge3e3y7823e' },
       firstName: {
-        $regex: "^Roshan",
-        $options: "i",
+        $regex: '^Roshan',
+        $options: 'i',
       },
       todosCount: {
         $gt: 1,
       },
-    });
-  });
-  it("should validate the access acl", async () => {
-    const accessMatrix = await resolvers.validateAccess("read", {
-      ctx: { user: { role: "USER" } },
-    });
-    expect(accessMatrix).toStrictEqual(["firstName"]);
-  });
+    })
+  })
+  it('should validate the access acl', async () => {
+    const accessMatrix = await resolvers.validateAccess('read', {
+      ctx: { user: { role: 'USER' } },
+    })
+    expect(accessMatrix).toStrictEqual(['firstName'])
+  })
 
-  it("should merge the access acl", async () => {
-    const access = await resolvers.mergeAcl("USER");
+  it('should merge the access acl', async () => {
+    const access = await resolvers.mergeAcl('USER')
     const defaultAcl = {
       default: false,
       acl: { read: true, create: false, update: false, delete: false },
       accessList: {
-        read: ["firstName"],
+        read: ['firstName'],
         create: [],
         update: [],
         delete: [],
       },
-    };
-    expect(access).toStrictEqual(defaultAcl);
-  });
-  it("should validate the access acl", () => {
-    const access = resolvers.generateDefaultAcl(true);
-    const accessFalsy = resolvers.generateDefaultAcl(false);
+    }
+    expect(access).toStrictEqual(defaultAcl)
+  })
+  it('should validate the access acl', () => {
+    const access = resolvers.generateDefaultAcl(true)
+    const accessFalsy = resolvers.generateDefaultAcl(false)
     const defaultAcl = {
       default: true,
       acl: [
@@ -178,7 +178,7 @@ describe("Resolver Test", () => {
         { USER: { read: true, create: true, update: true, delete: true } },
         { ANONYMOUS: { read: true, create: true, update: true, delete: true } },
       ],
-    };
+    }
     const defaultAclFalsy = {
       default: false,
       acl: [
@@ -195,17 +195,17 @@ describe("Resolver Test", () => {
           },
         },
       ],
-    };
-    expect(access).toStrictEqual(defaultAcl);
-    expect(accessFalsy).toStrictEqual(defaultAclFalsy);
-  });
-  it("should trigger hooks", async () => {
-    await resolvers.hooks("beforeCreate", {});
-    await resolvers.hooks("afterCreate", {});
-    await resolvers.hooks("beforeUpdate", {});
-    await resolvers.hooks("afterUpdate", {});
-    await resolvers.hooks("beforeDelete", {});
-    await resolvers.hooks("afterDelete", {});
-    expect(hookFunc).toBeCalledTimes(6);
-  });
-});
+    }
+    expect(access).toStrictEqual(defaultAcl)
+    expect(accessFalsy).toStrictEqual(defaultAclFalsy)
+  })
+  it('should trigger hooks', async () => {
+    await resolvers.hooks('beforeCreate', {})
+    await resolvers.hooks('afterCreate', {})
+    await resolvers.hooks('beforeUpdate', {})
+    await resolvers.hooks('afterUpdate', {})
+    await resolvers.hooks('beforeDelete', {})
+    await resolvers.hooks('afterDelete', {})
+    expect(hookFunc).toBeCalledTimes(6)
+  })
+})
