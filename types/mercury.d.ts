@@ -11,3 +11,4 @@ type DbAdapter = 'mongoose'
 declare interface String {
   toProperCase: () => string
 }
+declare const mercury: Mercury
