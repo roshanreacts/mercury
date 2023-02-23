@@ -1,18 +1,19 @@
-import Create from "./lib/Create";
-import _ from "lodash";
-import mongoose from "mongoose";
-import { mergeTypeDefs, mergeResolvers } from "@graphql-tools/merge";
+import _ from 'lodash'
+import mongoose from 'mongoose'
+import { mergeTypeDefs, mergeResolvers } from '@graphql-tools/merge'
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
-import nconf from "nconf";
-import ScalarResolver from "./lib/Scalars";
+import nconf from 'nconf'
+import Create from './Create'
+import ScalarResolver from './Scalars'
 
 String.prototype.toProperCase = function () {
   return this.replace(/\w\S*/g, function (txt) {
-    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
-  });
-};
+    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+  })
+}
 class Mercury {
-  private _lists: Array<schemaType> = [];
+  private _lists: Array<schemaType> = []
   private _schema: string[] = [
     `
   scalar DateTime
@@ -89,54 +90,54 @@ class Mercury {
     in: [String]
     notIn: [String]
   }`,
-  ];
-  private _resolvers: any = ScalarResolver;
-  private _dbModels: { [key: string]: any } = {};
-  private _roles: Array<string> = [];
-  private _adminRole: string = "";
+  ]
+  private _resolvers: any = ScalarResolver
+  private _dbModels: { [key: string]: any } = {}
+  private _roles: Array<string> = []
+  private _adminRole = ''
 
-  adapter: DbAdapter;
-  path: string;
+  adapter: DbAdapter
+  path: string
 
   constructor() {
-    nconf.argv().env().file({ file: "mercury.config.json" });
-    this.adapter = "mongoose";
-    this.path = nconf.get("dbPath")
-      ? nconf.get("dbPath")
-      : "mongodb://localhost:27017/mercuryapp";
-    this._roles = nconf.get("roles")
-      ? nconf.get("roles")
-      : ["SUPERADMIN", "USER", "ANONYMOUS"];
-    this._adminRole = nconf.get("adminRole")
-      ? nconf.get("adminRole")
-      : "SUPERADMIN";
-    if (nconf.get("dbPath")) {
-      this.connect(this.path);
+    nconf.argv().env().file({ file: 'mercury.config.json' })
+    this.adapter = 'mongoose'
+    this.path = nconf.get('dbPath')
+      ? nconf.get('dbPath')
+      : 'mongodb://localhost:27017/mercuryapp'
+    this._roles = nconf.get('roles')
+      ? nconf.get('roles')
+      : ['SUPERADMIN', 'USER', 'ANONYMOUS']
+    this._adminRole = nconf.get('adminRole')
+      ? nconf.get('adminRole')
+      : 'SUPERADMIN'
+    if (nconf.get('dbPath')) {
+      this.connect(this.path)
     }
   }
 
   get schema(): any {
-    return mergeTypeDefs(this._schema);
+    return mergeTypeDefs(this._schema)
   }
 
   get resolvers() {
-    return this._resolvers;
+    return this._resolvers
   }
 
   get db() {
-    return this._dbModels;
+    return this._dbModels
   }
 
   public get roles() {
-    return this._roles;
+    return this._roles
   }
 
   public get adminRole() {
-    return this._adminRole;
+    return this._adminRole
   }
 
   public get schemaList() {
-    return this._lists;
+    return this._lists
   }
 
   // public set adminRole(role: string) {
@@ -147,41 +148,34 @@ class Mercury {
   //   this._roles = rolesArray;
   // }
   connect(path: string) {
-    this.path = path;
-    mongoose.Promise = global.Promise;
-    mongoose.connect(this.path, {
-      useNewUrlParser: true,
-      useCreateIndex: true,
-      useFindAndModify: false,
-      useUnifiedTopology: true,
-    });
+    this.path = path
+    mongoose.connect(this.path)
   }
   createList(name: string, schema: listSchema) {
-    const regexPascal = /^[A-Z][A-Za-z]*$/; //Pascalcase regex
-    if (!regexPascal.test(name) || name.slice(-1) === "s") {
+    const regexPascal = /^[A-Z][A-Za-z]*$/ //Pascalcase regex
+    if (!regexPascal.test(name) || name.slice(-1) === 's') {
       throw new Error(
         "Invalid name, should be PascalCase and should not have 's' at the end"
-      );
+      )
     }
-    if (!_.has(schema, "access")) {
+    if (!_.has(schema, 'access')) {
       schema.access = {
         default: true,
         acl: this._roles.map((role: string) => ({
           [role]: true,
         })),
-      };
+      }
     }
-    if (!_.has(schema, "public")) {
-      schema.public = false;
+    if (!_.has(schema, 'public')) {
+      schema.public = false
     }
-    this._lists.push({ _model: name, ...schema });
-    const create = new Create(this);
-    const createModel = create.createList({ _model: name, ...schema });
-    this._schema.push(createModel.schema);
-    this._resolvers = mergeResolvers([this._resolvers, createModel.resolver]);
-    this._dbModels[name] = createModel.models.newModel;
+    this._lists.push({ _model: name, ...schema })
+    const create = new Create(this)
+    const createModel = create.createList({ _model: name, ...schema })
+    this._schema.push(createModel.schema)
+    this._resolvers = mergeResolvers([this._resolvers, createModel.resolver])
+    this._dbModels[name] = createModel.models.newModel
   }
 }
 
-const mercury = new Mercury();
-export default mercury;
+export const mercury = new Mercury()

@@ -30,7 +30,7 @@ import {
   USCurrencyResolver,
   JSONResolver,
   JSONObjectResolver,
-} from "graphql-scalars";
+} from 'graphql-scalars'
 
 export default {
   DateTime: DateTimeResolver,
@@ -70,4 +70,4 @@ export default {
   USCurrency: USCurrencyResolver,
   JSON: JSONResolver,
   JSONObject: JSONObjectResolver,
-};
+}
