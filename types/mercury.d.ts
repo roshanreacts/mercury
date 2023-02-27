@@ -4,6 +4,7 @@ declare class Mercury {
   adminRole: string
   adapter: DbAdapter
   path: string
+  db: { [x: string]: any }
 }
 
 type DbAdapter = 'mongoose'

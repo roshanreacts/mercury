@@ -74,6 +74,8 @@ interface listSchema {
   typeDefs?: string
   public?: boolean | Function | verboseAccessType
   hooks?: HookType
+  enableHistoryTracking?: boolean
+  isHistory?: boolean
 }
 
 interface _model {
