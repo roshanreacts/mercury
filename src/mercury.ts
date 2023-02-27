@@ -151,13 +151,53 @@ class Mercury {
     this.path = path
     mongoose.connect(this.path)
   }
-  createList(name: string, schema: listSchema) {
+  private _createHistory(name: string, schema: listSchema) {
+    const historySchema: listSchema = {
+      fields: {
+        recordId: {
+          type: 'relationship',
+          ref: name,
+        },
+        operationType: {
+          type: 'enum',
+          enum: ['UPDATE', 'DELETE'],
+          enumType: 'string',
+          isRequired: true,
+        },
+        instanceId: {
+          type: 'string',
+          isRequired: true,
+        },
+        dataType: {
+          type: 'string',
+          isRequired: true,
+        },
+        fieldName: {
+          type: 'string',
+          isRequired: true,
+        },
+        newValue: {
+          type: 'string',
+          isRequired: true,
+        },
+        oldValue: {
+          type: 'string',
+          isRequired: true,
+        },
+      },
+      access: schema.access,
+      isHistory: true,
+    }
+    this._createList(`${name}History`, historySchema)
+  }
+  private _createList(name: string, schema: listSchema) {
     const regexPascal = /^[A-Z][A-Za-z]*$/ //Pascalcase regex
     if (!regexPascal.test(name) || name.slice(-1) === 's') {
       throw new Error(
         "Invalid name, should be PascalCase and should not have 's' at the end"
       )
     }
+    schema.isHistory = false
     if (!_.has(schema, 'access')) {
       schema.access = {
         default: true,
@@ -175,6 +215,12 @@ class Mercury {
     this._schema.push(createModel.schema)
     this._resolvers = mergeResolvers([this._resolvers, createModel.resolver])
     this._dbModels[name] = createModel.models.newModel
+  }
+  createList(name: string, schema: listSchema) {
+    if (schema.enableHistoryTracking) {
+      this._createHistory(name, schema)
+    }
+    this._createList(name, schema)
   }
 }
 

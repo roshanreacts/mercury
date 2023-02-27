@@ -3,6 +3,7 @@
 import _ from 'lodash'
 import graphqlFields from 'graphql-fields'
 import Generate from './Generate'
+import { Types } from 'mongoose'
 
 class Resolvers {
   _list: Array<schemaType>
@@ -141,8 +142,61 @@ class Resolvers {
         break
     }
   }
+  async createHistoryRecord(
+    prevRecord: any,
+    newRecord: any,
+    opType: 'UPDATE' | 'DELETE'
+  ): Promise<void> {
+    const prevObj = prevRecord.toObject()
+    const newObj = newRecord.toObject()
+    let diff = _.omitBy(newObj, (value, key) => {
+      return _.isEqual(value, prevObj[key])
+    })
+    if (opType === 'DELETE') {
+      diff = prevObj
+      delete diff._id
+      delete diff.__v
+    }
+    delete diff.createdOn
+    delete diff.updatedOn
+    if (
+      this.schema.enableHistoryTracking &&
+      !_.isEmpty(diff) &&
+      !this.schema.isHistory
+    ) {
+      // Create history record
+      const historyModel = this.generate._mercury.db[`${this.modelName}History`]
+      if (historyModel) {
+        const instaceId = new Types.ObjectId()
+        await _.each(diff, async (newValue: any, fieldName: string) => {
+          const dataType = this.modelFields[fieldName]?.type || 'UNKNOWN'
+          if (dataType !== 'UNKNOWN' && dataType === 'relationship') {
+            return
+          }
 
-  mapMongoResolver(name: string, Model: any) {
+          await historyModel.create({
+            recordId: prevRecord._id,
+            operationType: opType,
+            instanceId: instaceId,
+            dataType: dataType,
+            fieldName: fieldName,
+            newValue: this.ifStringAndNotNull(newValue),
+            oldValue: this.ifStringAndNotNull(prevObj[fieldName]),
+          })
+        })
+      }
+    }
+  }
+  ifStringAndNotNull(value: any): string {
+    if (typeof value !== 'string') {
+      value = value.toString()
+    }
+    if (value == null || value.length == 0) {
+      value = 'UNKNOWN'
+    }
+    return value
+  }
+  mapMongoResolver(name: string, Model: any): any {
     // createModel resolver
     switch (name) {
       // Queries
@@ -235,13 +289,17 @@ class Resolvers {
             'create'
           )
           const selectedKey = _.intersection(parentFields, allowedKey)
+          let stopExecutionState: string | boolean = false
           this.hooks('beforeCreate', {
             root,
             args,
             ctx,
             resolveInfo,
             allowedKey,
+            stopExecution: (err = 'EXECUTION STOPPED') =>
+              (stopExecutionState = err),
           })
+          if (stopExecutionState) throw new Error(stopExecutionState)
           const newModel = new Model(args.data)
           await newModel.save()
           this.hooks('afterCreate', {
@@ -252,10 +310,9 @@ class Resolvers {
             populate,
             docs: newModel,
           })
-          return await newModel
+          return Model.findOne({ _id: newModel._id })
             .select(selectedKey.join(' '))
             .populate(populate)
-            .execPopulate()
         }
         break
 
@@ -284,18 +341,21 @@ class Resolvers {
           const allRecords: any = []
           await Promise.all(
             _.map(args.data, async (record) => {
+              let stopExecutionState: string | boolean = false
               this.hooks('beforeCreate', {
                 root,
                 args,
                 ctx,
                 resolveInfo,
                 allowedKey,
+                stopExecution: (err = 'EXECUTION STOPPED') =>
+                  (stopExecutionState = err),
               })
+              if (stopExecutionState) throw new Error(stopExecutionState)
               const newRecord = await Model.create(record)
-              await newRecord
+              const fetchRec = await Model.findOne({ _id: newRecord._id })
                 .select(selectedKey.join(' '))
                 .populate(populate)
-                .execPopulate()
               this.hooks('afterCreate', {
                 root,
                 args,
@@ -304,7 +364,7 @@ class Resolvers {
                 allowedKey,
                 docs: newRecord,
               })
-              allRecords.push(newRecord)
+              allRecords.push(fetchRec)
             })
           )
 
@@ -338,6 +398,9 @@ class Resolvers {
           if (!findModel) {
             throw new Error(`Record with id: ${args.id} not found`)
           }
+          let updateData = args.data
+          const setUpdateData = (newArgData: any) => (updateData = newArgData)
+          let stopExecutionState: string | boolean = false
           this.hooks('beforeUpdate', {
             root,
             args,
@@ -345,25 +408,28 @@ class Resolvers {
             resolveInfo,
             allowedKey,
             prevRecord: findModel,
+            setUpdateData,
+            stopExecution: (err = 'EXECUTION STOPPED') =>
+              (stopExecutionState = err),
           })
+          if (stopExecutionState) throw new Error(stopExecutionState)
           const updateModel = await Model.findByIdAndUpdate(
             args.id,
-            args.data,
+            updateData,
             {
               new: true,
             }
           )
-          await updateModel
             .select(selectedKey.join(' '))
             .populate(populate)
-            .execPopulate()
+          await this.createHistoryRecord(findModel, updateModel, 'UPDATE')
           this.hooks('afterUpdate', {
             root,
             args,
             ctx,
             resolveInfo,
             allowedKey,
-            prevRecord: findModel,
+            prevRecord: updateModel,
             docs: updateModel,
           })
           return updateModel
@@ -399,6 +465,10 @@ class Resolvers {
               if (!findModel) {
                 throw new Error(`Record with id: ${record.id} not found`)
               }
+              let updateData = record.data
+              const setUpdateData = (newArgData: any) =>
+                (updateData = newArgData)
+              let stopExecutionState: string | boolean = false
               this.hooks('beforeUpdate', {
                 root,
                 args,
@@ -406,16 +476,21 @@ class Resolvers {
                 resolveInfo,
                 allowedKey,
                 prevRecord: findModel,
+                setUpdateData,
+                stopExecution: (err = 'EXECUTION STOPPED') =>
+                  (stopExecutionState = err),
               })
+              if (stopExecutionState) throw new Error(stopExecutionState)
+
               const updateRecord = await Model.findByIdAndUpdate(
                 record.id,
-                record.data,
+                updateData,
                 { new: true }
               )
-              await updateRecord
                 .select(selectedKey.join(' '))
                 .populate(populate)
-                .execPopulate()
+              await this.createHistoryRecord(findModel, updateRecord, 'UPDATE')
+              // await findModel.select(selectedKey.join(' ')).populate(populate)
               this.hooks('afterUpdate', {
                 root,
                 args,
@@ -446,14 +521,19 @@ class Resolvers {
             resolveInfo,
           })
           const findModel = await Model.findById(args.id)
+          let stopExecutionState: string | boolean = false
           this.hooks('beforeDelete', {
             root,
             args,
             ctx,
             resolveInfo,
             prevRecord: findModel,
+            stopExecution: (err = 'EXECUTION STOPPED') =>
+              (stopExecutionState = err),
           })
+          if (stopExecutionState) throw new Error(stopExecutionState)
           const delRec = await Model.findByIdAndDelete(args.id)
+          await this.createHistoryRecord(findModel, delRec, 'DELETE')
           this.hooks('afterDelete', {
             root,
             args,
@@ -482,14 +562,19 @@ class Resolvers {
           await Promise.all(
             _.map(args.ids, async (id: any) => {
               const findModel = await Model.findById(id)
+              let stopExecutionState: string | boolean = false
               this.hooks('beforeDelete', {
                 root,
                 args,
                 ctx,
                 resolveInfo,
                 prevRecord: findModel,
+                stopExecution: (err = 'EXECUTION STOPPED') =>
+                  (stopExecutionState = err),
               })
+              if (stopExecutionState) throw new Error(stopExecutionState)
               const delRec = await Model.findByIdAndDelete(id)
+              await this.createHistoryRecord(findModel, delRec, 'DELETE')
               this.hooks('afterDelete', {
                 root,
                 args,
@@ -505,7 +590,7 @@ class Resolvers {
         break
 
       default:
-        return (root: any, args: { data: any }, ctx: any) => {}
+        return (root: any, args: { data: any }, ctx: any) => ({})
         break
     }
   }
