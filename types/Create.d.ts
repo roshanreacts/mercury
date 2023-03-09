@@ -16,6 +16,7 @@ interface FieldsMap {
     graphqlType?: string
     localField?: string
     foreignField?: string
+    history?: boolean
   }
 }
 
