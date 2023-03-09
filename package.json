@@ -1,6 +1,6 @@
 {
   "name": "@mercury-js/core",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Fully automated models and grpahql schema generator for your Apollo Server",
   "private": false,
   "main": "dist/cjs/index.js",
@@ -48,6 +48,7 @@
     "@graphql-tools/merge": "^8.3.18",
     "graphql-fields": "^2.0.3",
     "graphql-scalars": "^1.20.1",
+    "kareem": "^2.5.1",
     "lodash": "^4.17.21",
     "mongoose": "^6.9.1",
     "mongoose-bcrypt": "^1.10.1",

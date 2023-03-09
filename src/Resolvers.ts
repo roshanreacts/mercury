@@ -169,9 +169,34 @@ class Resolvers {
       if (historyModel) {
         const instaceId = new Types.ObjectId()
         await _.each(diff, async (newValue: any, fieldName: string) => {
-          const dataType = this.modelFields[fieldName]?.type || 'UNKNOWN'
-          if (dataType !== 'UNKNOWN' && dataType === 'relationship') {
+          const skipDataTypes = ['virtual']
+          let dataType = this.modelFields[fieldName]?.type || 'UNKNOWN'
+          const hasMany = this.modelFields[fieldName]?.many || false
+          // Check if history is exiclipt
+          const exicliptHistory = _.has(this.modelFields[fieldName], 'history')
+            ? this.modelFields[fieldName].history
+            : hasMany // If hasMany then exiclipt history
+            ? false
+            : true
+          if (!exicliptHistory) {
             return
+          }
+          if (skipDataTypes.includes(dataType)) {
+            return
+          }
+          if (dataType === 'relationship' && hasMany && !exicliptHistory) {
+            return
+          }
+          if (dataType === 'relationship' && hasMany && exicliptHistory) {
+            dataType = this.modelFields[fieldName].ref || 'UNKNOWN'
+            newValue = newValue.map((item: any) => item.id)
+            prevRecord[fieldName] = prevRecord[fieldName].map((item: any) =>
+              item.toString()
+            )
+          }
+          if (dataType === 'relationship' && !hasMany) {
+            dataType = this.modelFields[fieldName].ref || 'UNKNOWN'
+            newValue = typeof newValue === 'object' ? newValue.id : newValue
           }
 
           await historyModel.create({
